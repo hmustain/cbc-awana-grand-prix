@@ -4,43 +4,41 @@ const Racer = require("../models/Racer");
 
 const router = express.Router();
 
-// Generate heat races
 router.post("/generate", async (req, res) => {
   try {
-    // Fetch all racers
-    const racers = await Racer.find();
-    if (racers.length < 4) {
-      return res.status(400).json({ message: "Not enough racers to generate heats (minimum 4 needed)." });
+    // Fetch all racers, sorted consistently (e.g., by lastName then firstName)
+    let racers = await Racer.find().sort({ lastName: 1, firstName: 1 });
+    
+    if (racers.length < 1) {
+      return res.status(400).json({ message: "No racers available to generate heats." });
     }
 
-    let heats = [];
-    let heatNumber = 1;
-    let lanes = [0, 1, 2, 3]; // Four lanes
+    const totalRounds = 4; // Each racer races once per round, total 4 races per racer.
+    let allHeats = [];
 
-    // Shuffle racers randomly
-    const shuffledRacers = [...racers].sort(() => Math.random() - 0.5);
-
-    // Assign racers to heats, ensuring fair lane distribution
-    while (shuffledRacers.length >= 4) {
-      let assignedRacers = shuffledRacers.splice(0, 4); // Take the first 4 racers
-      let laneAssignments = assignedRacers.map((racer, index) => ({
-        racer: racer._id,
-        lane: lanes[index], // Assign a lane to each racer
+    // For each round, assign lanes and partition racers into heats.
+    for (let round = 0; round < totalRounds; round++) {
+      // For each racer, assign a lane using (round + index) mod 4.
+      let roundAssignments = racers.map((racer, index) => ({
+        racerId: racer._id,
+        lane: (round + index) % 4
       }));
 
-      const newHeat = new Heat({
-        racers: assignedRacers.map(r => r._id),
-        results: [],
-        heatNumber,
-        laneAssignments,
-      });
-
-      await newHeat.save();
-      heats.push(newHeat);
-      heatNumber++;
+      // Partition roundAssignments into chunks of 4.
+      for (let i = 0; i < roundAssignments.length; i += 4) {
+        let heatGroup = roundAssignments.slice(i, i + 4);
+        // Create a new heat with these racers and their lane assignments.
+        const newHeat = new Heat({
+          racers: heatGroup.map(entry => entry.racerId),
+          laneAssignments: heatGroup, // Each item: { racerId, lane }
+          round: round + 1  // Round number (1 to 4)
+        });
+        await newHeat.save();
+        allHeats.push(newHeat);
+      }
     }
 
-    res.status(201).json({ message: "Heats generated successfully", heats });
+    res.status(201).json({ message: "Heats generated successfully", heats: allHeats });
   } catch (error) {
     console.error("Error generating heats:", error);
     res.status(500).json({ message: "Error generating heats", error });
