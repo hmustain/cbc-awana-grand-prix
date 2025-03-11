@@ -22,8 +22,8 @@ async function runSeeds() {
     console.log("Connected to MongoDB for seeding");
 
     await seedRacers();
-    // Optionally, run other seed functions here if you have them.
-    await seedRandomScoring(); // Run the random scoring simulation
+    // Optionally, if you have a seedHeats function, run that here
+    await seedRandomScoring();
 
     console.log("Seeding complete");
   } catch (error) {
