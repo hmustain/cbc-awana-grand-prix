@@ -1,8 +1,8 @@
 // seedRandomScoring.js
 const mongoose = require("mongoose");
 require("dotenv").config();
-const Heat = require("./models/Heat");
-const Racer = require("./models/Racer");
+const Heat = require("../models/Heat");
+const Racer = require("../models/Racer");
 
 async function simulateScoring() {
   try {
