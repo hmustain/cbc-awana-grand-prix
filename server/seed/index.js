@@ -1,10 +1,16 @@
 const mongoose = require("mongoose");
 require("dotenv").config();
 
+// Skip seeding in production
+if (process.env.NODE_ENV === 'production') {
+  console.log("Production environment detected. Skipping seeding.");
+  process.exit(0);
+}
+
 // Import individual seed functions
 const seedRacers = require("./seedRacers");
-// const seedHeats = require("./seedHeats"); // Uncomment if available
-// const seedBrackets = require("./seedBrackets"); // Uncomment if available
+// const seedHeats = require("./seedHeats");
+// const seedBrackets = require("./seedBrackets");
 
 async function runSeeds() {
   try {
@@ -14,7 +20,6 @@ async function runSeeds() {
     });
     console.log("Connected to MongoDB for seeding");
 
-    // Run each seed script in sequence
     await seedRacers();
     // await seedHeats();
     // await seedBrackets();
