@@ -6,33 +6,47 @@ const router = express.Router();
 
 // GET all heats
 router.get("/", async (req, res) => {
-  try {
-    // Retrieve all heats and sort them (by round or creation time, for example)
-    const heats = await Heat.find().sort({ round: 1 });
-    
-    // Populate each heat with racer details and format the racer string.
-    const formattedHeats = await Promise.all(
-      heats.map(async (heat, index) => {
-        const populatedHeat = await Heat.findById(heat._id).populate("racers", "firstName lastName club");
-        const formattedRacers = populatedHeat.racers.map(racer =>
-          `${racer.firstName} ${racer.lastName.charAt(0)} - ${racer.club}`
-        );
-        return {
-          heatName: `Heat ${index + 1}`,
-          racers: formattedRacers,
-          _id: populatedHeat._id,
-          results: populatedHeat.results
-        };
-      })
-    );
-    
-    res.status(200).json({ message: "Heats retrieved successfully", heats: formattedHeats });
-  } catch (error) {
-    console.error("Error retrieving heats:", error);
-    res.status(500).json({ message: "Error retrieving heats", error });
-  }
-});
-
+    try {
+      // Retrieve all heats sorted by round
+      const heats = await Heat.find().sort({ round: 1 });
+      
+      // For each heat, populate both the racers and the results.racer fields
+      const formattedHeats = await Promise.all(
+        heats.map(async (heat, index) => {
+          const populatedHeat = await Heat.findById(heat._id)
+            .populate("racers", "firstName lastName club")
+            .populate("results.racer", "firstName lastName club");
+          
+          const numRacers = populatedHeat.racers.length;
+          
+          // Format each result with racer's name, placement, and points received.
+          const formattedResults = populatedHeat.results.map(result => {
+            const racer = result.racer;
+            const formattedName = `${racer.firstName} ${racer.lastName.charAt(0)} - ${racer.club}`;
+            const pointsReceived = numRacers - (result.placement - 1);
+            return {
+              formattedName,
+              placement: result.placement,
+              pointsReceived
+            };
+          });
+          
+          return {
+            heatName: `Heat ${index + 1}`,
+            round: populatedHeat.round,
+            _id: populatedHeat._id,
+            results: formattedResults
+          };
+        })
+      );
+      
+      res.status(200).json({ message: "Heats retrieved successfully", heats: formattedHeats });
+    } catch (error) {
+      console.error("Error retrieving heats:", error);
+      res.status(500).json({ message: "Error retrieving heats", error });
+    }
+  });
+  
 // POST: Generate heats
 router.post("/generate", async (req, res) => {
   try {
