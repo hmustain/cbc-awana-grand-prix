@@ -1,8 +1,16 @@
 const mongoose = require("mongoose");
 
 const HeatSchema = new mongoose.Schema({
-  racers: [{ type: mongoose.Schema.Types.ObjectId, ref: "Racer" }], // 4 racers per heat
-  results: [{ racer: mongoose.Schema.Types.ObjectId, place: Number }] // Store placements (1st, 2nd, 3rd, 4th)
+  racers: [{ type: mongoose.Schema.Types.ObjectId, ref: "Racer" }],
+  laneAssignments: [{
+    racerId: { type: mongoose.Schema.Types.ObjectId, ref: "Racer" },
+    lane: Number
+  }],
+  round: { type: Number },
+  results: [{
+    racer: { type: mongoose.Schema.Types.ObjectId, ref: "Racer" },
+    placement: Number
+  }]
 });
 
 module.exports = mongoose.model("Heat", HeatSchema);
