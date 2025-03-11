@@ -11,7 +11,6 @@ if (process.env.NODE_ENV === "production") {
 const seedRacers = require("./seedRacers");
 const seedHeats = require("./seedHeats");
 const seedRandomScoring = require("./seedRandomScoring");
-// const seedBrackets = require("./seedBrackets");
 
 async function runSeeds() {
   try {
@@ -21,12 +20,9 @@ async function runSeeds() {
     });
     console.log("Connected to MongoDB for seeding");
 
-    // Seed the racers
     await seedRacers();
-    // Generate the heats from the seeded racers
-    await seedHeats();
-    // Apply random scoring to the generated heats
-    await seedRandomScoring();
+    await seedHeats();      
+    await seedRandomScoring(); 
 
     console.log("Seeding complete");
   } catch (error) {

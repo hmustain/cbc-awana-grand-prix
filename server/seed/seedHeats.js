@@ -2,39 +2,41 @@ const Heat = require("../models/Heat");
 const Racer = require("../models/Racer");
 
 async function seedHeats() {
-  // Fetch all racers, sorted consistently (e.g., by lastName then firstName)
-  let racers = await Racer.find().sort({ lastName: 1, firstName: 1 });
+  // Retrieve all racers, sorted consistently
+  const racers = await Racer.find().sort({ lastName: 1, firstName: 1 });
   
   if (racers.length < 1) {
     throw new Error("No racers available to generate heats.");
   }
 
-  const totalRounds = 4; // Each racer races once per round, so 4 rounds total.
+  const totalRounds = 4; // Each racer will race once per round.
   let allHeats = [];
 
-  // For each round, assign lanes deterministically so that each racer runs on a different lane.
+  // For each round, assign lanes and group racers into heats
   for (let round = 0; round < totalRounds; round++) {
-    // For each racer, assign a lane using (round + index) mod 4.
-    let roundAssignments = racers.map((racer, index) => ({
+    // Create lane assignments: each racer gets a lane based on (round + index) mod 4.
+    const roundAssignments = racers.map((racer, index) => ({
       racerId: racer._id,
       lane: (round + index) % 4
     }));
 
-    // Partition roundAssignments into heats of 4 (the last heat may have fewer than 4 racers)
+    // Group the assignments into heats of 4 racers (last heat may have fewer than 4 racers)
     for (let i = 0; i < roundAssignments.length; i += 4) {
-      let heatGroup = roundAssignments.slice(i, i + 4);
+      const heatGroup = roundAssignments.slice(i, i + 4);
       const heatRacerIds = heatGroup.map(item => item.racerId);
-
-      // Create a new heat with these racers and their lane assignments.
+      
+      // Create a new Heat document with the racer IDs and lane assignments
       const newHeat = new Heat({
-        racers: heatRacerIds,
-        laneAssignments: heatGroup, // Each item: { racerId, lane }
-        round: round + 1  // Round number (1 to 4)
+        racers: heatRacerIds,             // This is critical for population later!
+        laneAssignments: heatGroup,
+        round: round + 1
       });
+      
       await newHeat.save();
       allHeats.push(newHeat);
     }
   }
+  
   console.log(`Generated ${allHeats.length} heats.`);
 }
 
