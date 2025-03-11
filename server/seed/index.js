@@ -9,6 +9,7 @@ if (process.env.NODE_ENV === 'production') {
 
 // Import individual seed functions
 const seedRacers = require("./seedRacers");
+const seedRandomScoring = require("./seedRandomScoring");
 // const seedHeats = require("./seedHeats");
 // const seedBrackets = require("./seedBrackets");
 
@@ -21,8 +22,8 @@ async function runSeeds() {
     console.log("Connected to MongoDB for seeding");
 
     await seedRacers();
-    // await seedHeats();
-    // await seedBrackets();
+    // Optionally, run other seed functions here if you have them.
+    await seedRandomScoring(); // Run the random scoring simulation
 
     console.log("Seeding complete");
   } catch (error) {

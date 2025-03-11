@@ -66,4 +66,42 @@ router.post("/generate", async (req, res) => {
   }
 });
 
+// scoring endpoint
+router.post("/score", async (req, res) => {
+    try {
+      const { heatId, results } = req.body;
+      
+      if (!heatId || !results || !Array.isArray(results)) {
+        return res.status(400).json({ message: "heatId and results array are required" });
+      }
+      
+      // Update the heat with the submitted results.
+      const heat = await Heat.findById(heatId);
+      if (!heat) {
+        return res.status(404).json({ message: "Heat not found" });
+      }
+      
+      heat.results = results.map(result => ({
+        racer: result.racerId,
+        placement: result.placement
+      }));
+      
+      await heat.save();
+  
+      // Points assignment logic: for example, 1st: 4 points, 2nd: 3 points, 3rd: 2 points, 4th: 1 point.
+      const placementPoints = { 1: 4, 2: 3, 3: 2, 4: 1 };
+  
+      // Update each racer's total points.
+      for (const result of results) {
+        const pointsAwarded = placementPoints[result.placement] || 0;
+        await Racer.findByIdAndUpdate(result.racerId, { $inc: { points: pointsAwarded } });
+      }
+      
+      res.status(200).json({ message: "Heat scored successfully", heat });
+    } catch (error) {
+      console.error("Error scoring heat:", error);
+      res.status(500).json({ message: "Error scoring heat", error });
+    }
+  });
+
 module.exports = router;
