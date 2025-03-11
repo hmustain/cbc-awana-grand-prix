@@ -13,13 +13,15 @@ router.get("/", async (req, res) => {
       // For each heat, populate both the racers and the results.racer fields
       const formattedHeats = await Promise.all(
         heats.map(async (heat, index) => {
+          // Populate the 'racers' field and also the 'results.racer' field
           const populatedHeat = await Heat.findById(heat._id)
             .populate("racers", "firstName lastName club")
             .populate("results.racer", "firstName lastName club");
           
+          // The total number of racers in the heat
           const numRacers = populatedHeat.racers.length;
           
-          // Format each result with racer's name, placement, and points received.
+          // Format each result to include the racer's formatted name, placement, and points received.
           const formattedResults = populatedHeat.results.map(result => {
             const racer = result.racer;
             const formattedName = `${racer.firstName} ${racer.lastName.charAt(0)} - ${racer.club}`;
