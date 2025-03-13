@@ -2,7 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const Bracket = require("../models/Bracket");
 const Racer = require("../models/Racer");
-const GrandPrix = require("../models/GrandPrix"); // For populating event name
+const GrandPrix = require("../models/GrandPrix");
 
 const router = express.Router();
 
@@ -17,23 +17,21 @@ router.post("/generateFull", async (req, res) => {
     if (!grandPrixId) {
       return res.status(400).json({ message: "grandPrixId is required" });
     }
-    
+
     // Retrieve racers for the event, sorted by points descending (higher seed first)
     const racers = await Racer.find({ grandPrix: grandPrixId }).sort({ points: -1 });
     const n = racers.length;
     if (n < 2) {
       return res.status(400).json({ message: "Not enough racers to generate a bracket" });
     }
-    
-    const bracketSize = nextPowerOfTwo(n);
-    const byes = bracketSize - n;
-    console.log(`Total racers: ${n}, Bracket size: ${bracketSize}, Byes: ${byes}`);
-    
-    let winnersBracket = [];
-    
-    // Round 1: Create matchups with byes for top seeds
+
+    // Standard byes = nextPowerOfTwo(n) - n, but cap at 4
+    const standardByes = nextPowerOfTwo(n) - n;
+    const byes = Math.min(standardByes, 4);
+    console.log(`Total racers: ${n}, Standard byes: ${standardByes}, Capped byes: ${byes}`);
+
     let round1Matchups = [];
-    // Assign byes to the top seeds:
+    // Assign byes to the top 'byes' seeds:
     for (let i = 0; i < byes; i++) {
       round1Matchups.push({
         racer1: racers[i]._id,
@@ -42,72 +40,64 @@ router.post("/generateFull", async (req, res) => {
         loser: null
       });
     }
-    // Pair the remaining racers (from index 'byes' onward):
-    let remaining = racers.slice(byes);
-    let i = 0;
-    let j = remaining.length - 1;
-    while (i < j) {
-      round1Matchups.push({
-        racer1: remaining[i]._id,
-        racer2: remaining[j]._id,
-        winner: null,
-        loser: null
-      });
-      i++;
-      j--;
+    // Pair the remaining racers sequentially:
+    const remaining = racers.slice(byes);
+    for (let i = 0; i < remaining.length; i += 2) {
+      if (i + 1 < remaining.length) {
+        round1Matchups.push({
+          racer1: remaining[i]._id,
+          racer2: remaining[i + 1]._id,
+          winner: null,
+          loser: null
+        });
+      } else {
+        // If there's an odd number, assign a bye for the last racer.
+        round1Matchups.push({
+          racer1: remaining[i]._id,
+          racer2: null,
+          winner: remaining[i]._id,
+          loser: null
+        });
+      }
     }
-    // If there's an odd number remaining, assign a bye:
-    if (i === j) {
-      round1Matchups.push({
-        racer1: remaining[i]._id,
-        racer2: null,
-        winner: remaining[i]._id,
-        loser: null
-      });
-    }
-    
-    winnersBracket.push({
-      round: 1,
-      matchups: round1Matchups
-    });
-    
-    // Generate subsequent rounds for the winners bracket.
+
+    // Build the winners bracket rounds.
+    let winnersBracket = [];
+    winnersBracket.push({ round: 1, matchups: round1Matchups });
+
     let currentRoundMatchups = round1Matchups;
     let roundNumber = 2;
     while (currentRoundMatchups.length > 1) {
       let nextRoundMatchups = [];
-      // Simulate winners from current round:
+      // Simulate winners from current round (assume bye or racer1 wins by default)
       let winners = currentRoundMatchups.map(matchup => matchup.winner ? matchup.winner : matchup.racer1);
-      // Pair winners for the next round:
-      for (let k = 0; k < winners.length; k += 2) {
-        if (k + 1 < winners.length) {
+      // Pair winners for the next round sequentially:
+      for (let i = 0; i < winners.length; i += 2) {
+        if (i + 1 < winners.length) {
           nextRoundMatchups.push({
-            racer1: winners[k],
-            racer2: winners[k + 1],
+            racer1: winners[i],
+            racer2: winners[i + 1],
             winner: null,
             loser: null
           });
         } else {
           nextRoundMatchups.push({
-            racer1: winners[k],
+            racer1: winners[i],
             racer2: null,
-            winner: winners[k],
+            winner: winners[i],
             loser: null
           });
         }
       }
-      winnersBracket.push({
-        round: roundNumber,
-        matchups: nextRoundMatchups
-      });
+      winnersBracket.push({ round: roundNumber, matchups: nextRoundMatchups });
       currentRoundMatchups = nextRoundMatchups;
       roundNumber++;
     }
-    
-    // Losers bracket: For now, we'll leave this empty or add placeholders.
-    let losersBracket = [];
-    
-    // Finals placeholder:
+
+    // Losers bracket: We'll leave this empty for now
+    const losersBracket = [];
+
+    // Finals placeholders:
     const finals = {
       championship: {
         match: {
@@ -126,18 +116,17 @@ router.post("/generateFull", async (req, res) => {
         }
       }
     };
-    
-    // Create and save the bracket
+
+    // Create and save the bracket document.
     const bracket = new Bracket({
       grandPrix: grandPrixId,
       winnersBracket,
       losersBracket,
       finals
     });
-    
     await bracket.save();
-    
-    // Re-query the bracket and populate nested fields for better readability:
+
+    // Re-query the bracket and populate nested fields for easier reading.
     const fullBracket = await Bracket.findById(bracket._id)
       .populate("grandPrix", "name")
       .populate({
@@ -148,24 +137,23 @@ router.post("/generateFull", async (req, res) => {
         path: "winnersBracket.matchups.racer2",
         select: "firstName lastName club"
       });
-    
-    // Optionally, add a custom "matchName" property to each matchup for clarity:
+
+    // Add a custom match name to each matchup.
     const formattedWinners = fullBracket.winnersBracket.map(round => {
-      const formattedMatchups = round.matchups.map((matchup, index) => {
-        let matchName = `Round ${round.round} - Match ${index + 1}`;
-        return { ...matchup.toObject(), matchName };
-      });
+      const formattedMatchups = round.matchups.map((matchup, index) => ({
+        ...matchup.toObject(),
+        matchName: `Round ${round.round} - Match ${index + 1}`
+      }));
       return { round: round.round, matchups: formattedMatchups };
     });
-    
-    // Construct a response with populated Grand Prix and formatted winners bracket.
+
     const responseBracket = {
-      grandPrix: fullBracket.grandPrix, // contains the event name
+      grandPrix: fullBracket.grandPrix, // Contains the event name.
       winnersBracket: formattedWinners,
-      losersBracket: fullBracket.losersBracket, // likely empty for now
+      losersBracket: fullBracket.losersBracket, // Likely empty for now.
       finals: fullBracket.finals
     };
-    
+
     res.status(201).json({
       message: "Full bracket generated successfully",
       bracket: responseBracket
