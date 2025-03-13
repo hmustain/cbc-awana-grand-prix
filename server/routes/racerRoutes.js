@@ -1,6 +1,6 @@
 const express = require("express");
 const Racer = require("../models/Racer");
-const GrandPrix = require("../models/GrandPrix"); // Import GrandPrix model
+const GrandPrix = require("../models/GrandPrix"); // <-- Added import for GrandPrix
 
 const router = express.Router();
 
@@ -13,8 +13,7 @@ router.post("/", async (req, res) => {
     }
 
     let grandPrixId = grandPrix;
-    // If grandPrix id is not provided but grandPrixName is,
-    // look up the event by name.
+    // If a Grand Prix ID is not provided but a grandPrixName is, look it up.
     if (!grandPrixId && grandPrixName) {
       const event = await GrandPrix.findOne({ name: grandPrixName });
       if (event) {
@@ -28,7 +27,19 @@ router.post("/", async (req, res) => {
     await newRacer.save();
     res.status(201).json(newRacer);
   } catch (error) {
+    console.error("Error registering racer:", error);
     res.status(500).json({ message: "Error registering racer", error });
+  }
+});
+
+// Get all racers
+router.get("/", async (req, res) => {
+  try {
+    const racers = await Racer.find().sort({ lastName: 1, firstName: 1 });
+    res.json(racers);
+  } catch (error) {
+    console.error("Error fetching racers:", error);
+    res.status(500).json({ message: "Error fetching racers", error });
   }
 });
 

@@ -2,6 +2,10 @@ const Heat = require("../models/Heat");
 const Racer = require("../models/Racer");
 
 async function seedHeats(grandPrixId) {
+  // Clear existing heats to avoid duplication
+  await Heat.deleteMany({});
+  console.log("Cleared existing heats");
+
   // Retrieve racers associated with the specified Grand Prix
   const racers = await Racer.find({ grandPrix: grandPrixId }).sort({ lastName: 1, firstName: 1 });
   

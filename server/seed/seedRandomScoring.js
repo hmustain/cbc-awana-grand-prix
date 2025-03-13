@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Heat = require("../models/Heat");
 const Racer = require("../models/Racer");
 
@@ -13,9 +14,9 @@ async function seedRandomScoring() {
       let placements = Array.from({ length: numRacers }, (_, i) => i + 1);
       placements.sort(() => Math.random() - 0.5);
       
-      // For each racer in the heat, assign a random placement
+      // For each racer in the heat, assign a random placement and explicitly create an ObjectId
       const results = heat.racers.map((racerId, index) => ({
-        racer: racerId, // This should be a valid ObjectId from the racers array
+        racer: new mongoose.Types.ObjectId(racerId),
         placement: placements[index]
       }));
       
