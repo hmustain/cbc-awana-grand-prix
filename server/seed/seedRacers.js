@@ -25,13 +25,18 @@ const sampleRacers = [
   { firstName: "Lori", lastName: "Silvey", club: "Adults" }
 ];
 
-async function seedRacers() {
+async function seedRacers(grandPrixId) {
   // Clear existing racers
   await Racer.deleteMany({});
   console.log("Cleared existing racers");
 
-  // Insert sample racers
-  const createdRacers = await Racer.insertMany(sampleRacers);
+  // Associate each racer with the provided grandPrix event
+  const racersWithEvent = sampleRacers.map(racer => ({
+    ...racer,
+    grandPrix: grandPrixId
+  }));
+
+  const createdRacers = await Racer.insertMany(racersWithEvent);
   console.log("Seeded racers:", createdRacers.length);
 }
 

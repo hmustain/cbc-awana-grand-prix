@@ -1,15 +1,15 @@
 const Heat = require("../models/Heat");
 const Racer = require("../models/Racer");
 
-async function seedHeats() {
-  // Retrieve all racers, sorted consistently
-  const racers = await Racer.find().sort({ lastName: 1, firstName: 1 });
+async function seedHeats(grandPrixId) {
+  // Retrieve racers associated with the specified Grand Prix
+  const racers = await Racer.find({ grandPrix: grandPrixId }).sort({ lastName: 1, firstName: 1 });
   
   if (racers.length < 1) {
     throw new Error("No racers available to generate heats.");
   }
 
-  const totalRounds = 4; // Each racer will race once per round.
+  const totalRounds = 4; // Each racer races once per round.
   let allHeats = [];
 
   // For each round, assign lanes and group racers into heats
@@ -25,11 +25,12 @@ async function seedHeats() {
       const heatGroup = roundAssignments.slice(i, i + 4);
       const heatRacerIds = heatGroup.map(item => item.racerId);
       
-      // Create a new Heat document with the racer IDs and lane assignments
+      // Create a new Heat document with racer IDs, lane assignments, round, and event association
       const newHeat = new Heat({
-        racers: heatRacerIds,             // This is critical for population later!
+        racers: heatRacerIds,
         laneAssignments: heatGroup,
-        round: round + 1
+        round: round + 1,
+        grandPrix: grandPrixId
       });
       
       await newHeat.save();

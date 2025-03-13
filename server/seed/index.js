@@ -8,9 +8,11 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // Import individual seed functions
+const seedGrandPrix = require("./seedGrandPrix");
 const seedRacers = require("./seedRacers");
 const seedHeats = require("./seedHeats");
 const seedRandomScoring = require("./seedRandomScoring");
+// const seedBrackets = require("./seedBrackets");
 
 async function runSeeds() {
   try {
@@ -19,11 +21,19 @@ async function runSeeds() {
       useUnifiedTopology: true,
     });
     console.log("Connected to MongoDB for seeding");
-
-    await seedRacers();
-    await seedHeats();      
-    await seedRandomScoring(); 
-
+    
+    // Seed a single Grand Prix event
+    const grandPrixId = await seedGrandPrix();
+    
+    // Seed racers and associate them with the Grand Prix
+    await seedRacers(grandPrixId);
+    
+    // Generate heats for racers from the seeded event
+    await seedHeats(grandPrixId);
+    
+    // Apply random scoring to the generated heats
+    await seedRandomScoring();
+    
     console.log("Seeding complete");
   } catch (error) {
     console.error("Error during seeding:", error);
