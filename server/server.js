@@ -5,7 +5,7 @@ require("dotenv").config();
 
 const racerRoutes = require("./routes/racerRoutes");
 const heatRoutes = require("./routes/heatRoutes");
-
+const grandPrixRoutes = require("./routes/grandPrixRoutes");
 
 const app = express();
 
@@ -16,7 +16,7 @@ app.use(cors());
 // API Routes
 app.use("/api/racers", racerRoutes);
 app.use("/api/heats", heatRoutes);
-
+app.use("/api/grandprix", grandPrixRoutes);
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
