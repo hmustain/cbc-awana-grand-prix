@@ -9,7 +9,8 @@ const BracketSchema = new mongoose.Schema({
       winner: { type: mongoose.Schema.Types.ObjectId, ref: "Racer", default: null },
       loser: { type: mongoose.Schema.Types.ObjectId, ref: "Racer", default: null }
     }
-  ]
+  ],
+  grandPrix: { type: mongoose.Schema.Types.ObjectId, ref: "GrandPrix" }
 });
 
 module.exports = mongoose.model("Bracket", BracketSchema);

@@ -7,6 +7,7 @@ const RacerSchema = new mongoose.Schema({
   points: { type: Number, default: 0 },
   heats: [{ type: mongoose.Schema.Types.ObjectId, ref: "Heat" }],
   seed: { type: Number, default: null },
+  grandPrix: { type: mongoose.Schema.Types.ObjectId, ref: "GrandPrix" }
 });
 
 module.exports = mongoose.model("Racer", RacerSchema);

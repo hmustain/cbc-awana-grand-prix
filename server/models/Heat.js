@@ -10,7 +10,8 @@ const HeatSchema = new mongoose.Schema({
   results: [{
     racer: { type: mongoose.Schema.Types.ObjectId, ref: "Racer" },
     placement: Number
-  }]
+  }],
+  grandPrix: { type: mongoose.Schema.Types.ObjectId, ref: "GrandPrix" }
 });
 
 module.exports = mongoose.model("Heat", HeatSchema);
