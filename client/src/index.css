@@ -2,11 +2,11 @@
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
+  
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
+  
+  /* Removed default background-color in favor of a background image */
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -24,10 +24,11 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  /* Set your background image to cover the entire viewport */
+  background: url('/images/awana-grandprix-background.jpg') no-repeat center center fixed;
+  background-size: cover;
 }
 
 h1 {
@@ -57,7 +58,7 @@ button:focus-visible {
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
-    background-color: #ffffff;
+    /* Removing background-color override so the image remains visible */
   }
   a:hover {
     color: #747bff;
