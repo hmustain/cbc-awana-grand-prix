@@ -5,6 +5,7 @@ import CreateGrandPrix from "./components/CreateGrandPrix";
 import ViewGrandPrix from "./components/ViewGrandPrix";
 import ViewRacers from "./components/ViewRacers";
 import AddRacer from "./components/AddRacer";
+import ViewHeats from "./components/ViewHeats";
 
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
         <Route path="/existing" element={<ViewGrandPrix />} />
         <Route path="/view-racers/:gpId" element={<ViewRacers />} />
         <Route path="/add-racer/:gpId" element={<AddRacer />} />
+        <Route path="/heats" element={<ViewHeats />} />
       </Routes>
     </Router>
   );
