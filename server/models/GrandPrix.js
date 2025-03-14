@@ -7,14 +7,22 @@ const GrandPrixSchema = new Schema(
     description: { type: String },
     date: { type: Date, default: Date.now },
     location: { type: String },
-    // Racers registered for this event
     racers: [{ type: Schema.Types.ObjectId, ref: "Racer" }],
-    // Generated heats for the event
     heats: [{ type: Schema.Types.ObjectId, ref: "Heat" }],
-    // The bracket for the event (could be an ObjectId to a separate Bracket document)
     bracket: { type: Schema.Types.ObjectId, ref: "Bracket" }
   },
   { timestamps: true }
 );
+
+// Virtual for racers (using the Racer model's grandPrix field)
+GrandPrixSchema.virtual('racersList', {
+  ref: 'Racer',
+  localField: '_id',
+  foreignField: 'grandPrix'
+});
+
+// Ensure virtual fields are included when converting to JSON or Objects
+GrandPrixSchema.set('toObject', { virtuals: true });
+GrandPrixSchema.set('toJSON', { virtuals: true });
 
 module.exports = mongoose.model("GrandPrix", GrandPrixSchema);

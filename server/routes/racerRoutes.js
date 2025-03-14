@@ -43,4 +43,18 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Delete a racer by ID
+router.delete("/:id", async (req, res) => {
+  try {
+    const deletedRacer = await Racer.findByIdAndDelete(req.params.id);
+    if (!deletedRacer) {
+      return res.status(404).json({ message: "Racer not found" });
+    }
+    res.status(200).json({ message: "Racer deleted", racer: deletedRacer });
+  } catch (error) {
+    console.error("Error deleting racer:", error);
+    res.status(500).json({ message: "Error deleting racer", error });
+  }
+});
+
 module.exports = router;

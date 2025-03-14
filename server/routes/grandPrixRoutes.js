@@ -19,7 +19,11 @@ router.post("/", async (req, res) => {
 // Get all Grand Prix events
 router.get("/", async (req, res) => {
   try {
-    const events = await GrandPrix.find().sort({ createdAt: -1 });
+    // Populate the virtual "racersList" field
+    const events = await GrandPrix.find()
+      .sort({ createdAt: -1 })
+      .populate("racersList", "firstName lastName club");
+
     res.status(200).json({ message: "Events retrieved", grandPrix: events });
   } catch (error) {
     console.error("Error retrieving events:", error);
@@ -31,7 +35,7 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const event = await GrandPrix.findById(req.params.id)
-      .populate("racers", "firstName lastName club")
+      .populate("racersList", "firstName lastName club") // Updated to populate virtual field
       .populate("heats")
       .populate("bracket");
     if (!event) {
