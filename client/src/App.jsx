@@ -2,7 +2,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import LandingPage from "./components/LandingPage";
 import CreateGrandPrix from "./components/CreateGrandPrix";
-import ViewGrandPrix from "./pages/ViewGrandPrix"; // If stored in "src/pages"
+import ViewGrandPrix from "./components/ViewGrandPrix"; 
 
 function App() {
   return (
