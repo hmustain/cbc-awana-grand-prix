@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import '../styles/LandingPage.css';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import "../styles/LandingPage.css";
 
 function LandingPage() {
   const [showModal, setShowModal] = useState(false);
@@ -8,12 +8,12 @@ function LandingPage() {
 
   const handleCreate = () => {
     setShowModal(false);
-    navigate('/registration');
+    navigate("/registration");
   };
 
   const handleView = () => {
     setShowModal(false);
-    navigate('/existing');
+    navigate("/existing");
   };
 
   return (
@@ -35,7 +35,6 @@ function LandingPage() {
           <div className="modal d-block" tabIndex="-1">
             <div className="modal-dialog modal-dialog-centered">
               <div className="modal-content text-center text-dark">
-                
                 {/* Centered Title, Close Button in Top-Right */}
                 <div className="modal-header border-0 text-center position-relative">
                   <h5 className="modal-title fw-bold w-100">
@@ -44,7 +43,7 @@ function LandingPage() {
                   <button
                     type="button"
                     className="btn-close"
-                    style={{ position: 'absolute', top: '1rem', right: '1rem' }}
+                    style={{ position: "absolute", top: "1rem", right: "1rem" }}
                     onClick={() => setShowModal(false)}
                   ></button>
                 </div>
@@ -56,14 +55,16 @@ function LandingPage() {
 
                 {/* Footer with centered buttons */}
                 <div className="modal-footer justify-content-center border-0">
-                  <button className="btn btn-dark me-3" onClick={handleCreate}>
+                  <button
+                    className="btn btn-dark btn-lg me-3"
+                    onClick={handleCreate}
+                  >
                     Create Grand Prix
                   </button>
-                  <button className="btn btn-dark" onClick={handleView}>
+                  <button className="btn btn-dark btn-lg" onClick={handleView}>
                     View Existing Grand Prix
                   </button>
                 </div>
-
               </div>
             </div>
           </div>
