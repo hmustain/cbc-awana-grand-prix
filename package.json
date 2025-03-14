@@ -1,0 +1,25 @@
+{
+  "name": "cbc-awana-grand-prix",
+  "version": "1.0.0",
+  "description": "Awana Grand Prix web application for Central Baptist Church Texarkana, AR",
+  "main": "index.js",
+  "scripts": {
+    "start:server": "cd server && npm run dev",
+    "start:client": "cd client && npm start",
+    "start": "concurrently \"npm run start:server\" \"npm run start:client\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hmustain/cbc-awana-grand-prix.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/hmustain/cbc-awana-grand-prix/issues"
+  },
+  "homepage": "https://github.com/hmustain/cbc-awana-grand-prix#readme",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
