@@ -4,6 +4,8 @@ import LandingPage from "./components/LandingPage";
 import CreateGrandPrix from "./components/CreateGrandPrix";
 import ViewGrandPrix from "./components/ViewGrandPrix";
 import ViewRacers from "./components/ViewRacers";
+import AddRacer from "./components/AddRacer";
+
 
 function App() {
   return (
@@ -13,6 +15,7 @@ function App() {
         <Route path="/registration" element={<CreateGrandPrix />} />
         <Route path="/existing" element={<ViewGrandPrix />} />
         <Route path="/view-racers/:gpId" element={<ViewRacers />} />
+        <Route path="/add-racer/:gpId" element={<AddRacer />} />
       </Routes>
     </Router>
   );
