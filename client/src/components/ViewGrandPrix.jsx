@@ -24,12 +24,11 @@ function ViewGrandPrix() {
     navigate(`/add-racer/${gpId}`);
   };
 
-  // Updated Start GP handler: Pass the GP id in the payload to the generate endpoint.
+  // Updated Start GP: generate heats for the selected GP and navigate to /heats/:gpId
   const handleStartGP = async (gpId) => {
     try {
-      // Pass the gpId to your heats generation endpoint.
       await axios.post("/api/heats/generate", { grandPrix: gpId });
-      navigate("/heats");
+      navigate(`/heats/${gpId}`);
     } catch (err) {
       console.error("Error generating heats:", err);
       setError(err.message);
@@ -67,7 +66,6 @@ function ViewGrandPrix() {
       >
         <h2 className="fw-bold mb-4">Existing Grand Prix</h2>
         {error && <p className="text-danger">{error}</p>}
-
         {grandPrixList.length === 0 ? (
           <p>No Grand Prix found.</p>
         ) : (

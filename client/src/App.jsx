@@ -7,7 +7,6 @@ import ViewRacers from "./components/ViewRacers";
 import AddRacer from "./components/AddRacer";
 import ViewHeats from "./components/ViewHeats";
 
-
 function App() {
   return (
     <Router>
@@ -18,7 +17,7 @@ function App() {
         <Route path="/view-racers/:gpId" element={<ViewRacers />} />
         <Route path="/add-racer/:gpId" element={<AddRacer />} />
         <Route path="/heats/:gpId" element={<ViewHeats />} />
-        </Routes>
+      </Routes>
     </Router>
   );
 }

@@ -10,14 +10,12 @@ router.get("/gp/:gpId", async (req, res) => {
     const { gpId } = req.params;
     const heats = await Heat.find({ grandPrix: gpId }).sort({ round: 1 });
     
-    // Format or populate as needed
     const formattedHeats = await Promise.all(
       heats.map(async (heat, index) => {
         const populatedHeat = await Heat.findById(heat._id)
           .populate("racers", "firstName lastName club")
           .populate("results.racer", "firstName lastName club");
         
-        // Example formatting
         const numRacers = populatedHeat.racers?.length || 0;
         const formattedResults = populatedHeat.results.map((r) => {
           if (!r.racer) return { formattedName: "Unknown Racer", placement: r.placement, pointsReceived: 0 };
@@ -26,7 +24,7 @@ router.get("/gp/:gpId", async (req, res) => {
           const pointsReceived = numRacers - (r.placement - 1);
           return { formattedName, placement: r.placement, pointsReceived };
         });
-
+        
         return {
           heatName: `Heat ${index + 1}`,
           round: populatedHeat.round,
@@ -39,7 +37,7 @@ router.get("/gp/:gpId", async (req, res) => {
         };
       })
     );
-
+    
     res.status(200).json({ message: "Heats retrieved successfully", heats: formattedHeats });
   } catch (error) {
     console.error("Error retrieving heats for GP:", error);
@@ -54,23 +52,22 @@ router.post("/generate", async (req, res) => {
     if (!grandPrix) {
       return res.status(400).json({ message: "Grand Prix ID is required to generate heats." });
     }
-
+    
     // Fetch only the racers for this Grand Prix
     let racers = await Racer.find({ grandPrix }).sort({ lastName: 1, firstName: 1 });
     if (racers.length < 1) {
       return res.status(400).json({ message: "No racers available in this Grand Prix to generate heats." });
     }
-
-    // Example logic: 4 total rounds, 4 lanes each heat
+    
     const totalRounds = 4;
     let allHeats = [];
-
+    
     for (let round = 0; round < totalRounds; round++) {
       let roundAssignments = racers.map((racer, index) => ({
         racerId: racer._id,
         lane: (round + index) % 4
       }));
-
+      
       for (let i = 0; i < roundAssignments.length; i += 4) {
         let heatGroup = roundAssignments.slice(i, i + 4);
         const heatRacerIds = heatGroup.map(item => item.racerId);
@@ -84,8 +81,7 @@ router.post("/generate", async (req, res) => {
         allHeats.push(newHeat);
       }
     }
-
-    // Populate to return a user-friendly response
+    
     const formattedHeats = await Promise.all(
       allHeats.map(async (heat, index) => {
         const populatedHeat = await Heat.findById(heat._id).populate("racers", "firstName lastName club");
@@ -102,7 +98,7 @@ router.post("/generate", async (req, res) => {
         };
       })
     );
-
+    
     res.status(201).json({
       message: "Heats generated successfully",
       heats: formattedHeats
@@ -112,7 +108,6 @@ router.post("/generate", async (req, res) => {
     res.status(500).json({ message: "Error generating heats", error });
   }
 });
-
 
 // PUT: Update a heat (for manual adjustments)
 router.put("/:id", async (req, res) => {
@@ -148,9 +143,8 @@ router.post("/score", async (req, res) => {
     }));
     
     await heat.save();
-
+    
     const placementPoints = { 1: 4, 2: 3, 3: 2, 4: 1 };
-
     for (const result of results) {
       const pointsAwarded = placementPoints[result.placement] || 0;
       await Racer.findByIdAndUpdate(result.racerId, { $inc: { points: pointsAwarded } });
