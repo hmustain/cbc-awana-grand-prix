@@ -4,60 +4,64 @@ const Racer = require("../models/Racer");
 
 const router = express.Router();
 
-// GET all heats (with formatted results)
-router.get("/", async (req, res) => {
+// GET: All heats for a specific Grand Prix
+router.get("/gp/:gpId", async (req, res) => {
   try {
-    const heats = await Heat.find().sort({ round: 1 });
+    const { gpId } = req.params;
+    const heats = await Heat.find({ grandPrix: gpId }).sort({ round: 1 });
+    
+    // Format or populate as needed
     const formattedHeats = await Promise.all(
       heats.map(async (heat, index) => {
         const populatedHeat = await Heat.findById(heat._id)
           .populate("racers", "firstName lastName club")
           .populate("results.racer", "firstName lastName club");
         
-        const numRacers = populatedHeat.racers ? populatedHeat.racers.length : 0;
-        const formattedResults = populatedHeat.results.map(result => {
-          if (!result.racer) {
-            return {
-              formattedName: "Unknown Racer",
-              placement: result.placement,
-              pointsReceived: 0
-            };
-          }
-          const racer = result.racer;
+        // Example formatting
+        const numRacers = populatedHeat.racers?.length || 0;
+        const formattedResults = populatedHeat.results.map((r) => {
+          if (!r.racer) return { formattedName: "Unknown Racer", placement: r.placement, pointsReceived: 0 };
+          const racer = r.racer;
           const formattedName = `${racer.firstName} ${racer.lastName.charAt(0)} - ${racer.club}`;
-          const pointsReceived = numRacers - (result.placement - 1);
-          return {
-            formattedName,
-            placement: result.placement,
-            pointsReceived
-          };
+          const pointsReceived = numRacers - (r.placement - 1);
+          return { formattedName, placement: r.placement, pointsReceived };
         });
-        
+
         return {
           heatName: `Heat ${index + 1}`,
           round: populatedHeat.round,
           _id: populatedHeat._id,
-          results: formattedResults
+          results: formattedResults,
+          racers: populatedHeat.racers.map(racer =>
+            `${racer.firstName} ${racer.lastName.charAt(0)} - ${racer.club}`
+          ),
+          grandPrix: populatedHeat.grandPrix
         };
       })
     );
-    
+
     res.status(200).json({ message: "Heats retrieved successfully", heats: formattedHeats });
   } catch (error) {
-    console.error("Error retrieving heats:", error);
+    console.error("Error retrieving heats for GP:", error);
     res.status(500).json({ message: "Error retrieving heats", error });
   }
 });
 
-// POST: Generate heats
+// POST: Generate heats for a specific Grand Prix
 router.post("/generate", async (req, res) => {
   try {
-    let racers = await Racer.find().sort({ lastName: 1, firstName: 1 });
-    
-    if (racers.length < 1) {
-      return res.status(400).json({ message: "No racers available to generate heats." });
+    const { grandPrix } = req.body;
+    if (!grandPrix) {
+      return res.status(400).json({ message: "Grand Prix ID is required to generate heats." });
     }
 
+    // Fetch only the racers for this Grand Prix
+    let racers = await Racer.find({ grandPrix }).sort({ lastName: 1, firstName: 1 });
+    if (racers.length < 1) {
+      return res.status(400).json({ message: "No racers available in this Grand Prix to generate heats." });
+    }
+
+    // Example logic: 4 total rounds, 4 lanes each heat
     const totalRounds = 4;
     let allHeats = [];
 
@@ -73,13 +77,15 @@ router.post("/generate", async (req, res) => {
         const newHeat = new Heat({
           racers: heatRacerIds,
           laneAssignments: heatGroup,
-          round: round + 1
+          round: round + 1,
+          grandPrix // Store the GP ID here
         });
         await newHeat.save();
         allHeats.push(newHeat);
       }
     }
 
+    // Populate to return a user-friendly response
     const formattedHeats = await Promise.all(
       allHeats.map(async (heat, index) => {
         const populatedHeat = await Heat.findById(heat._id).populate("racers", "firstName lastName club");
@@ -90,7 +96,9 @@ router.post("/generate", async (req, res) => {
           heatName: `Heat ${index + 1}`,
           racers: formattedRacers,
           _id: populatedHeat._id,
-          results: populatedHeat.results
+          round: populatedHeat.round,
+          results: populatedHeat.results,
+          grandPrix: populatedHeat.grandPrix
         };
       })
     );
@@ -104,6 +112,7 @@ router.post("/generate", async (req, res) => {
     res.status(500).json({ message: "Error generating heats", error });
   }
 });
+
 
 // PUT: Update a heat (for manual adjustments)
 router.put("/:id", async (req, res) => {

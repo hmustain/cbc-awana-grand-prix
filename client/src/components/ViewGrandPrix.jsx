@@ -20,13 +20,20 @@ function ViewGrandPrix() {
     }
   };
 
-  // Existing handlers...
   const handleAddRacers = (gpId) => {
     navigate(`/add-racer/${gpId}`);
   };
 
-  const handleStartGP = (gpId) => {
-    console.log("Start GP for:", gpId);
+  // Updated Start GP handler: Pass the GP id in the payload to the generate endpoint.
+  const handleStartGP = async (gpId) => {
+    try {
+      // Pass the gpId to your heats generation endpoint.
+      await axios.post("/api/heats/generate", { grandPrix: gpId });
+      navigate("/heats");
+    } catch (err) {
+      console.error("Error generating heats:", err);
+      setError(err.message);
+    }
   };
 
   const handleDelete = async (gpId) => {
@@ -40,7 +47,6 @@ function ViewGrandPrix() {
     }
   };
 
-  // NEW: View Racers handler
   const handleViewRacers = (gpId) => {
     navigate(`/view-racers/${gpId}`);
   };

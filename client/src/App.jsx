@@ -17,8 +17,8 @@ function App() {
         <Route path="/existing" element={<ViewGrandPrix />} />
         <Route path="/view-racers/:gpId" element={<ViewRacers />} />
         <Route path="/add-racer/:gpId" element={<AddRacer />} />
-        <Route path="/heats" element={<ViewHeats />} />
-      </Routes>
+        <Route path="/heats/:gpId" element={<ViewHeats />} />
+        </Routes>
     </Router>
   );
 }
