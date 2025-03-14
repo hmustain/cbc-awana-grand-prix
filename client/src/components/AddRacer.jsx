@@ -25,7 +25,7 @@ function AddRacer() {
     try {
       // Include the grandPrix field using gpId from the URL
       const payload = { ...formData, grandPrix: gpId };
-      const response = await axios.post('/api/racer', payload);
+      const response = await axios.post('/api/racers', payload);
       console.log("Racer added:", response.data);
       // Redirect to the View Racers page (or another appropriate page)
       navigate(`/view-racers/${gpId}`);
@@ -94,7 +94,7 @@ function AddRacer() {
               required
             />
           </div>
-          <button type="submit" className="btn btn-dark btn-lg w-100 mt-3 fw-bold">
+          <button type="submit" className="btn btn-danger btn-lg w-100 mt-3 fw-bold">
             Add Racer
           </button>
         </form>
