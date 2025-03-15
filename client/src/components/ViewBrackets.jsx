@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
-import { Bracket } from "react-bracket";
+import { Bracket } from "react-tournament-bracket"; // Using react-tournament-bracket
 
 // Conversion function for Winners Bracket
 function convertWinnersToReactBracket(winnersBracket) {
@@ -80,7 +80,7 @@ function ViewBrackets() {
           setLoading(false);
           return;
         }
-        // Convert winners and losers bracket into react-bracket format.
+        // Convert winners and losers bracket into react-tournament-bracket format.
         const winnersBracket = convertWinnersToReactBracket(bracket.winnersBracket);
         const losersBracket = convertLosersToReactBracket(bracket.losersBracket);
 
@@ -123,7 +123,7 @@ function ViewBrackets() {
         style={{
           display: "flex",
           gap: "2rem",
-          overflowX: "auto", // Horizontal scrolling for large brackets
+          overflowX: "auto", // Horizontal scroll to see entire bracket
           paddingBottom: "1rem",
         }}
       >
