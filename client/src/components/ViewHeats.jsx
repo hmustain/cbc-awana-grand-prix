@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 function ViewHeats() {
   const { gpId } = useParams();
+  const navigate = useNavigate();
+
   const [heats, setHeats] = useState([]);
   const [gpName, setGpName] = useState("");
   const [error, setError] = useState(null);
@@ -55,6 +57,7 @@ function ViewHeats() {
   const handleScoreHeat = async () => {
     if (!currentHeat) return;
 
+    // Build the results array for scoring
     const results = laneInfo.map((item) => {
       const placement = parseInt(scoreInputs[item.racerId]) || 0;
       return { racerId: item.racerId, placement };
@@ -66,7 +69,7 @@ function ViewHeats() {
         results,
       });
 
-      // Refresh the heats
+      // Refresh to see updated "Place" columns
       await fetchHeatsForGP();
 
       // Move to the next heat automatically
@@ -82,11 +85,23 @@ function ViewHeats() {
     }
   };
 
+  // Check if all heats are fully scored
+  const areAllHeatsScored = () => {
+    if (heats.length === 0) return false;
+    return heats.every((heat) => {
+      // "Fully scored" means results.length === laneInfo.length
+      return (
+        heat.results &&
+        heat.laneInfo &&
+        heat.results.length === heat.laneInfo.length
+      );
+    });
+  };
+
   return (
     <div
       className="min-vh-100"
       style={{
-        // Dimmed background image + optional overlay for darkening
         background: `
           linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), 
           url('/path/to/your-background.jpg')
@@ -97,16 +112,12 @@ function ViewHeats() {
       }}
     >
       <div className="container py-5">
-        {/* Heading with text shadow */}
         <h2
           className="fw-bold mb-4 text-center text-white"
-          style={{
-            textShadow: "2px 2px 5px rgba(0,0,0,0.8)",
-          }}
+          style={{ textShadow: "2px 2px 5px rgba(0,0,0,0.8)" }}
         >
           Heats for {gpName || "Grand Prix"}
         </h2>
-
         {error && <p className="text-danger text-center">{error}</p>}
 
         {heats.length === 0 ? (
@@ -114,72 +125,86 @@ function ViewHeats() {
             No heats generated yet for this Grand Prix.
           </p>
         ) : (
-          <div className="row">
-            {heats.map((heat, index) => {
-              const cardTitle = heat.heatName;
-              const isScored = heat.results && heat.results.length > 0;
+          <>
+            {/* Heat Cards */}
+            <div className="row">
+              {heats.map((heat, index) => {
+                const cardTitle = heat.heatName;
+                const isScored = heat.results && heat.results.length > 0;
 
-              return (
-                <div key={heat._id} className="col-md-4 mb-4">
-                  {/* Translucent card */}
-                  <div
-                    className="h-100 p-3 text-white"
-                    style={{
-                      backgroundColor: "rgba(0,0,0,0.7)",
-                      borderRadius: "8px",
-                    }}
-                  >
-                    <h5 className="fw-bold mb-3">{cardTitle}</h5>
-                    <div style={{ overflowX: "auto" }}>
-                      <table className="table table-light table-striped table-sm">
-                        <thead>
-                          <tr>
-                            <th>Racer</th>
-                            <th>Lane</th>
-                            {isScored && <th>Place</th>}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {heat.laneInfo?.map((item, i) => {
-                            const shortName = item.name.split(" - ")[0];
-                            const laneDisplay = item.lane + 1;
+                return (
+                  <div key={heat._id} className="col-md-4 mb-4">
+                    <div
+                      className="h-100 p-3 text-white"
+                      style={{
+                        backgroundColor: "rgba(0,0,0,0.7)",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      <h5 className="fw-bold mb-3">{cardTitle}</h5>
+                      <div style={{ overflowX: "auto" }}>
+                        <table className="table table-light table-striped table-sm">
+                          <thead>
+                            <tr>
+                              <th>Racer</th>
+                              <th>Lane</th>
+                              {isScored && <th>Place</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {heat.laneInfo?.map((item, i) => {
+                              const shortName = item.name.split(" - ")[0];
+                              const laneDisplay = item.lane + 1;
 
-                            // If scored, find the racer's place
-                            let place = "";
-                            if (isScored) {
-                              const foundResult = heat.results.find((r) => {
-                                if (!r.racer || !item.racerId) return false;
-                                return (
-                                  r.racer.toString() === item.racerId.toString()
-                                );
-                              });
-                              place = foundResult?.placement || "";
-                            }
+                              let place = "";
+                              if (isScored) {
+                                const foundResult = heat.results.find((r) => {
+                                  if (!r.racer || !item.racerId) return false;
+                                  return (
+                                    r.racer.toString() ===
+                                    item.racerId.toString()
+                                  );
+                                });
+                                place = foundResult?.placement || "";
+                              }
 
-                            return (
-                              <tr key={i}>
-                                <td>{shortName}</td>
-                                <td>{laneDisplay}</td>
-                                {isScored && <td>{place}</td>}
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="d-flex justify-content-end">
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() => openModalForHeat(index)}
-                      >
-                        Run Heat
-                      </button>
+                              return (
+                                <tr key={i}>
+                                  <td>{shortName}</td>
+                                  <td>{laneDisplay}</td>
+                                  {isScored && <td>{place}</td>}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="d-flex justify-content-end">
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => openModalForHeat(index)}
+                        >
+                          Run Heat
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+
+            {/* If all heats are scored, show a "View Results" button */}
+            {areAllHeatsScored() && (
+              <div className="text-center mt-4">
+                <button
+                  className="btn btn-primary"
+                  onClick={() => navigate(`/gp/${gpId}/results`)}
+                >
+                  View Results
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
