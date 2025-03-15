@@ -6,7 +6,7 @@ import ViewGrandPrix from "./components/ViewGrandPrix";
 import ViewRacers from "./components/ViewRacers";
 import AddRacer from "./components/AddRacer";
 import ViewHeats from "./components/ViewHeats";
-import HeatResults from "./HeatResults";
+import HeatResults from "./components/HeatResults";
 
 
 function App() {

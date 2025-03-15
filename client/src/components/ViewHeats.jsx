@@ -197,7 +197,7 @@ function ViewHeats() {
             {areAllHeatsScored() && (
               <div className="text-center mt-4">
                 <button
-                  className="btn btn-primary"
+                  className="btn btn-danger"
                   onClick={() => navigate(`/gp/${gpId}/results`)}
                 >
                   View Results
