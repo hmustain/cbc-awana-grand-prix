@@ -4,12 +4,30 @@ import axios from "axios";
 
 function ViewGrandPrix() {
   const [grandPrixList, setGrandPrixList] = useState([]);
+  const [heatsExist, setHeatsExist] = useState({});
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchGrandPrix();
   }, []);
+
+  useEffect(() => {
+    // For each Grand Prix, check if heats exist.
+    grandPrixList.forEach((gp) => {
+      axios
+        .get(`/api/heats/gp/${gp._id}`)
+        .then((response) => {
+          setHeatsExist((prev) => ({
+            ...prev,
+            [gp._id]: response.data.heats && response.data.heats.length > 0,
+          }));
+        })
+        .catch((err) => {
+          console.error("Error checking heats for GP:", gp._id, err);
+        });
+    });
+  }, [grandPrixList]);
 
   const fetchGrandPrix = async () => {
     try {
@@ -24,13 +42,23 @@ function ViewGrandPrix() {
     navigate(`/add-racer/${gpId}`);
   };
 
-  // Updated Start GP: generate heats for the selected GP and navigate to /heats/:gpId
-  const handleStartGP = async (gpId) => {
+  const handleViewRacers = (gpId) => {
+    navigate(`/view-racers/${gpId}`);
+  };
+
+  // If heats exist, we navigate to the heats view. Otherwise, we generate heats first.
+  const handleStartOrViewGP = async (gpId) => {
     try {
-      await axios.post("/api/heats/generate", { grandPrix: gpId });
-      navigate(`/heats/${gpId}`);
+      if (heatsExist[gpId]) {
+        navigate(`/heats/${gpId}`);
+      } else {
+        await axios.post("/api/heats/generate", { grandPrix: gpId });
+        // Optionally update the heatsExist mapping once generated.
+        setHeatsExist((prev) => ({ ...prev, [gpId]: true }));
+        navigate(`/heats/${gpId}`);
+      }
     } catch (err) {
-      console.error("Error generating heats:", err);
+      console.error("Error starting GP:", err);
       setError(err.message);
     }
   };
@@ -44,10 +72,6 @@ function ViewGrandPrix() {
     } catch (err) {
       setError(err.message);
     }
-  };
-
-  const handleViewRacers = (gpId) => {
-    navigate(`/view-racers/${gpId}`);
   };
 
   return (
@@ -104,9 +128,9 @@ function ViewGrandPrix() {
                       </button>
                       <button
                         className="btn btn-success btn-sm me-2"
-                        onClick={() => handleStartGP(gp._id)}
+                        onClick={() => handleStartOrViewGP(gp._id)}
                       >
-                        Start GP
+                        {heatsExist[gp._id] ? "View Heats" : "Start GP"}
                       </button>
                       <button
                         className="btn btn-danger btn-sm"

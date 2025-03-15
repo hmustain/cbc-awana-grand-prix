@@ -40,6 +40,7 @@ router.get("/gp/:gpId", async (req, res) => {
         const formattedResults = populatedHeat.results.map((r) => {
           if (!r.racer) {
             return {
+              racer: null,
               formattedName: "Unknown Racer",
               placement: r.placement,
               pointsReceived: 0,
@@ -48,7 +49,7 @@ router.get("/gp/:gpId", async (req, res) => {
           const racer = r.racer;
           const formattedName = `${racer.firstName} ${racer.lastName.charAt(0)} - ${racer.club}`;
           const pointsReceived = numRacers - (r.placement - 1);
-          return { formattedName, placement: r.placement, pointsReceived };
+          return { racer: racer._id, formattedName, placement: r.placement, pointsReceived };
         });
 
         return {
@@ -137,7 +138,7 @@ router.post("/generate", async (req, res) => {
           "racers",
           "firstName lastName club"
         );
-        // We could build laneInfo here if you want to see it in the immediate response
+        // Build laneInfo here if you want to see it in the immediate response
         const laneInfo = populatedHeat.laneAssignments.map((assignment) => {
           const foundRacer = populatedHeat.racers.find(
             (r) => r._id.toString() === assignment.racerId.toString()
@@ -214,7 +215,7 @@ router.post("/score", async (req, res) => {
       return res.status(404).json({ message: "Heat not found" });
     }
 
-    // Update results
+    // Update results with the raw racer id
     heat.results = results.map((result) => ({
       racer: result.racerId,
       placement: result.placement,

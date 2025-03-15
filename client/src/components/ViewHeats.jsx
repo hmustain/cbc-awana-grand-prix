@@ -10,26 +10,23 @@ function ViewHeats() {
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
-  const [currentHeatIndex, setCurrentHeatIndex] = useState(0); // which heat are we scoring?
-  const [scoreInputs, setScoreInputs] = useState({}); // { racerId: placement }
+  const [currentHeatIndex, setCurrentHeatIndex] = useState(0);
+  const [scoreInputs, setScoreInputs] = useState({});
 
   useEffect(() => {
     fetchGPName();
     fetchHeatsForGP();
   }, [gpId]);
 
-  // Fetch the Grand Prix name
   const fetchGPName = async () => {
     try {
       const response = await axios.get(`/api/grandprix/${gpId}`);
-      const gp = response.data.grandPrix;
-      setGpName(gp.name);
+      setGpName(response.data.grandPrix.name);
     } catch (err) {
       console.error("Error fetching GP name:", err);
     }
   };
 
-  // Fetch only the heats for this GP
   const fetchHeatsForGP = async () => {
     try {
       const response = await axios.get(`/api/heats/gp/${gpId}`);
@@ -39,20 +36,15 @@ function ViewHeats() {
     }
   };
 
-  // Open the modal for a specific heat index
   const openModalForHeat = (index) => {
     setCurrentHeatIndex(index);
     setScoreInputs({});
     setModalOpen(true);
   };
 
-  // Build the data for the current heat
   const currentHeat = heats[currentHeatIndex];
-
-  // If we have laneInfo from the backend, we can display it in a table
   const laneInfo = currentHeat?.laneInfo || [];
 
-  // Handle changes to the "Place" inputs
   const handlePlaceChange = (racerId, value) => {
     setScoreInputs((prev) => ({
       ...prev,
@@ -60,18 +52,12 @@ function ViewHeats() {
     }));
   };
 
-  // Submit the score to the backend
   const handleScoreHeat = async () => {
     if (!currentHeat) return;
 
-    // Build the results array
-    // Each object: { racerId, placement }
     const results = laneInfo.map((item) => {
       const placement = parseInt(scoreInputs[item.racerId]) || 0;
-      return {
-        racerId: item.racerId,
-        placement,
-      };
+      return { racerId: item.racerId, placement };
     });
 
     try {
@@ -80,7 +66,7 @@ function ViewHeats() {
         results,
       });
 
-      // Refresh heats so we see the updated "Scored" status
+      // Refresh the heats
       await fetchHeatsForGP();
 
       // Move to the next heat automatically
@@ -88,7 +74,7 @@ function ViewHeats() {
         setCurrentHeatIndex(currentHeatIndex + 1);
         setScoreInputs({});
       } else {
-        // If it's the last heat, close the modal
+        // Last heat => close modal
         setModalOpen(false);
       }
     } catch (err) {
@@ -97,12 +83,31 @@ function ViewHeats() {
   };
 
   return (
-    <div className="min-vh-100" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
+    <div
+      className="min-vh-100"
+      style={{
+        // Dimmed background image + optional overlay for darkening
+        background: `
+          linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), 
+          url('/path/to/your-background.jpg')
+        `,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
       <div className="container py-5">
-        <h2 className="text-white fw-bold mb-4 text-center">
-          Heats for {gpName ? gpName : "Grand Prix"}
+        {/* Heading with text shadow */}
+        <h2
+          className="fw-bold mb-4 text-center text-white"
+          style={{
+            textShadow: "2px 2px 5px rgba(0,0,0,0.8)",
+          }}
+        >
+          Heats for {gpName || "Grand Prix"}
         </h2>
-        {error && <p className="text-danger">{error}</p>}
+
+        {error && <p className="text-danger text-center">{error}</p>}
 
         {heats.length === 0 ? (
           <p className="text-white text-center">
@@ -111,40 +116,60 @@ function ViewHeats() {
         ) : (
           <div className="row">
             {heats.map((heat, index) => {
-              // For display: "Round X - Heat Y"
-              const cardTitle = `Round ${heat.round} - Heat ${index + 1}`;
+              const cardTitle = heat.heatName;
+              const isScored = heat.results && heat.results.length > 0;
+
               return (
                 <div key={heat._id} className="col-md-4 mb-4">
-                  <div className="card bg-dark text-white">
-                    <div className="card-body">
-                      <h5 className="card-title">{cardTitle}</h5>
-                      {/* Table for vertical display: each racer is one row */}
-                      <table className="table table-dark table-sm">
+                  {/* Translucent card */}
+                  <div
+                    className="h-100 p-3 text-white"
+                    style={{
+                      backgroundColor: "rgba(0,0,0,0.7)",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <h5 className="fw-bold mb-3">{cardTitle}</h5>
+                    <div style={{ overflowX: "auto" }}>
+                      <table className="table table-light table-striped table-sm">
                         <thead>
                           <tr>
                             <th>Racer</th>
                             <th>Lane</th>
+                            {isScored && <th>Place</th>}
                           </tr>
                         </thead>
                         <tbody>
-                          {heat.laneInfo?.map((item, i) => (
-                            <tr key={i}>
-                              <td>{item.name}</td>
-                              <td>{item.lane}</td>
-                            </tr>
-                          ))}
+                          {heat.laneInfo?.map((item, i) => {
+                            const shortName = item.name.split(" - ")[0];
+                            const laneDisplay = item.lane + 1;
+
+                            // If scored, find the racer's place
+                            let place = "";
+                            if (isScored) {
+                              const foundResult = heat.results.find((r) => {
+                                if (!r.racer || !item.racerId) return false;
+                                return (
+                                  r.racer.toString() === item.racerId.toString()
+                                );
+                              });
+                              place = foundResult?.placement || "";
+                            }
+
+                            return (
+                              <tr key={i}>
+                                <td>{shortName}</td>
+                                <td>{laneDisplay}</td>
+                                {isScored && <td>{place}</td>}
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
-
-                      {heat.results && heat.results.length > 0 ? (
-                        <p className="card-text">Scored</p>
-                      ) : (
-                        <p className="card-text">Not scored yet</p>
-                      )}
-
-                      {/* Button to open the scoring modal */}
+                    </div>
+                    <div className="d-flex justify-content-end">
                       <button
-                        className="btn btn-primary btn-sm"
+                        className="btn btn-danger btn-sm"
                         onClick={() => openModalForHeat(index)}
                       >
                         Run Heat
@@ -167,11 +192,9 @@ function ViewHeats() {
           style={{ backgroundColor: "rgba(0,0,0,0.8)" }}
         >
           <div className="modal-dialog modal-dialog-centered" role="document">
-            <div className="modal-content bg-dark text-white">
+            <div className="modal-content bg-light text-dark">
               <div className="modal-header border-0">
-                <h5 className="modal-title">
-                  Round {currentHeat.round} - Heat {currentHeatIndex + 1}
-                </h5>
+                <h5 className="modal-title">{currentHeat.heatName}</h5>
                 <button
                   type="button"
                   className="btn-close"
@@ -179,8 +202,7 @@ function ViewHeats() {
                 ></button>
               </div>
               <div className="modal-body">
-                {/* Table with Racer, Lane, Place inputs */}
-                <table className="table table-dark table-sm">
+                <table className="table table-light table-sm">
                   <thead>
                     <tr>
                       <th>Racer</th>
@@ -189,27 +211,31 @@ function ViewHeats() {
                     </tr>
                   </thead>
                   <tbody>
-                    {laneInfo.map((item, idx) => (
-                      <tr key={item.racerId}>
-                        <td>{item.name}</td>
-                        <td>{item.lane}</td>
-                        <td>
-                          <input
-                            type="number"
-                            className="form-control form-control-sm"
-                            value={scoreInputs[item.racerId] || ""}
-                            onChange={(e) =>
-                              handlePlaceChange(item.racerId, e.target.value)
-                            }
-                          />
-                        </td>
-                      </tr>
-                    ))}
+                    {laneInfo.map((item) => {
+                      const shortName = item.name.split(" - ")[0];
+                      const laneDisplay = item.lane + 1;
+                      return (
+                        <tr key={item.racerId}>
+                          <td>{shortName}</td>
+                          <td>{laneDisplay}</td>
+                          <td>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              value={scoreInputs[item.racerId] || ""}
+                              onChange={(e) =>
+                                handlePlaceChange(item.racerId, e.target.value)
+                              }
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
               <div className="modal-footer border-0">
-                <button className="btn btn-primary" onClick={handleScoreHeat}>
+                <button className="btn btn-danger" onClick={handleScoreHeat}>
                   Score Heat
                 </button>
               </div>
