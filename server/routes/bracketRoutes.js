@@ -1,5 +1,5 @@
+// server/routes/bracketgeneration.js
 const express = require("express");
-const mongoose = require("mongoose");
 const Bracket = require("../models/Bracket");
 const Racer = require("../models/Racer");
 const GrandPrix = require("../models/GrandPrix");
@@ -11,54 +11,107 @@ function nextPowerOfTwo(n) {
   return Math.pow(2, Math.ceil(Math.log2(n)));
 }
 
+// Recursive function to generate standard seeding for a bracket of size p (p must be a power of 2)
+function generateSeeding(p) {
+  if (p === 1) return [1];
+  const half = p / 2;
+  const left = generateSeeding(half);
+  const right = left.map(seed => p + 1 - seed);
+  return [...left, ...right];
+}
+
+/**
+ * Generates a dynamic bracket mapping for any number of racers.
+ * Returns an array of rounds, where each round is an array of match objects.
+ * Each match object includes:
+ *  - matchId
+ *  - seed1 and seed2 (or null if bye)
+ *  - nextMatchIdIfWin and nextMatchSlot (for future updating)
+ */
+function getDynamicSeedMapping(n) {
+  const p = nextPowerOfTwo(n);
+  const seedingOrder = generateSeeding(p); // e.g., for p=16: [1,16,8,9,4,13,5,12,2,15,7,10,3,14,6,11]
+  
+  // Build Round 1 matchups: pairs of seeds from seedingOrder
+  let rounds = [];
+  let round1 = [];
+  for (let i = 0; i < p; i += 2) {
+    const s1 = seedingOrder[i] <= n ? seedingOrder[i] : null;
+    const s2 = seedingOrder[i + 1] <= n ? seedingOrder[i + 1] : null;
+    round1.push({
+      matchId: `R1-M${i / 2 + 1}`,
+      seed1: s1,
+      seed2: s2,
+      nextMatchIdIfWin: null,
+      nextMatchSlot: null
+    });
+  }
+  rounds.push(round1);
+
+  // Build subsequent rounds dynamically by pairing winners sequentially.
+  let currentRoundCount = round1.length;
+  let roundNum = 2;
+  while (currentRoundCount > 1) {
+    let nextRound = [];
+    for (let i = 0; i < currentRoundCount; i += 2) {
+      nextRound.push({
+        matchId: `R${roundNum}-M${Math.floor(i / 2) + 1}`,
+        seed1: null,
+        seed2: null,
+        nextMatchIdIfWin: null,
+        nextMatchSlot: null
+      });
+    }
+    rounds.push(nextRound);
+    currentRoundCount = nextRound.length;
+    roundNum++;
+  }
+  
+  // Assign nextMatchIdIfWin and nextMatchSlot for each match (except in the final round)
+  for (let r = 0; r < rounds.length - 1; r++) {
+    rounds[r].forEach((match, i) => {
+      const nextRoundMatch = rounds[r + 1][Math.floor(i / 2)];
+      match.nextMatchIdIfWin = nextRoundMatch.matchId;
+      // Even-indexed match winner goes to seed1, odd-indexed to seed2
+      match.nextMatchSlot = (i % 2 === 0) ? "seed1" : "seed2";
+    });
+  }
+  
+  return rounds;
+}
+
 // ------------------------------------------
 // Losers Bracket Computation
 // ------------------------------------------
-// This function computes the losers bracket rounds based on the winners bracket.
-// It uses the following logic:
-// 1. In winners round 1, every matchup that actually played (i.e. no bye)
-//    produces one loser that drops to losers bracket round 1.
-// 2. In subsequent winners rounds, the losers drop down and are combined with
-//    the winners from the previous losers round. They are then paired for the next losers round.
-// 3. No byes are introduced in the losers bracket (if an odd number occurs, we auto-advance).
 function computeLosersBracket(winnersBracket) {
   const losersRounds = [];
   
-  // Losers Round 1: Collect losers from winners bracket round 1.
+  // Losers Round 1: from winners round 1.
   let L1Entries = [];
   const wb1 = winnersBracket[0];
-  wb1.matchups.forEach(matchup => {
-    // If matchup was played (racer2 exists) and a winner is determined, add the loser.
-    if (matchup.racer2 !== null && matchup.winner) {
-      let loser;
-      if (matchup.winner.toString() === matchup.racer1.toString()) {
-        loser = matchup.racer2;
-      } else {
-        loser = matchup.racer1;
-      }
-      L1Entries.push({ source: "WB1", loser });
+  wb1.matchups.forEach((matchup, idx) => {
+    if (matchup.racer2 !== null) {
+      L1Entries.push({ source: "WB1", matchIndex: idx });
     }
   });
   
-  // Pair L1Entries into matches
   let L1Matches = [];
   for (let i = 0; i < L1Entries.length; i += 2) {
     if (i + 1 < L1Entries.length) {
       L1Matches.push({
         matchupId: `L1-match${Math.floor(i / 2) + 1}`,
-        participants: [L1Entries[i].loser, L1Entries[i + 1].loser],
+        participants: [L1Entries[i], L1Entries[i + 1]],
         winner: null,
         loser: null,
-        sources: [L1Entries[i].source, L1Entries[i + 1].source]
+        meta: { sources: [L1Entries[i].source, L1Entries[i + 1].source] }
       });
     } else {
-      // If odd (should rarely happen if bracket is seeded traditionally), auto-advance.
       L1Matches.push({
         matchupId: `L1-match${Math.floor(i / 2) + 1}`,
-        participants: [L1Entries[i].loser, null],
-        winner: L1Entries[i].loser,
+        participants: [L1Entries[i], null],
+        winner: null,
         loser: null,
-        sources: [L1Entries[i].source]
+        meta: { sources: [L1Entries[i].source] }
       });
     }
   }
@@ -66,41 +119,18 @@ function computeLosersBracket(winnersBracket) {
     losersRounds.push({ round: 1, matchups: L1Matches });
   }
   
-  // For subsequent rounds in the winners bracket (round 2 onward),
-  // drop their losers and combine with the winners from the previous losers round.
-  // We'll use previousLosers to track advancing entries from the last losers round.
-  // (For simulation purposes, if winners from losers matches are not determined,
-  // we use placeholders. You can later update these with actual match results.)
-  let previousLosersWinners = L1Matches.map(match => ({
-    participant: match.winner ? match.winner : null,
-    source: match.matchupId
-  }));
+  let previousLosersWinners = L1Matches.map(() => null);
   
-  // Iterate over winners rounds 2..R (index 1 onward)
   for (let r = 1; r < winnersBracket.length; r++) {
     let currentWBLosers = [];
-    winnersBracket[r].matchups.forEach(matchup => {
-      if (matchup.racer2 !== null && matchup.winner) {
-        let loser;
-        if (matchup.winner.toString() === matchup.racer1.toString()) {
-          loser = matchup.racer2;
-        } else {
-          loser = matchup.racer1;
-        }
-        currentWBLosers.push({ source: `WB${r + 1}`, loser });
+    winnersBracket[r].matchups.forEach((matchup, idx) => {
+      if (matchup.racer2 !== null) {
+        currentWBLosers.push({ source: `WB${r + 1}`, matchIndex: idx });
       }
     });
     
-    // Combine losers from current winners round with previous losers winners.
-    const combined = [];
-    previousLosersWinners.forEach(entry => {
-      if (entry.participant) combined.push(entry.participant);
-    });
-    currentWBLosers.forEach(entry => {
-      combined.push(entry.loser);
-    });
+    const combined = previousLosersWinners.concat(currentWBLosers);
     
-    // Form the current losers round matches from the combined list.
     let currentLosersMatches = [];
     for (let i = 0; i < combined.length; i += 2) {
       if (i + 1 < combined.length) {
@@ -108,31 +138,28 @@ function computeLosersBracket(winnersBracket) {
           matchupId: `L${r + 1}-match${Math.floor(i / 2) + 1}`,
           participants: [combined[i], combined[i + 1]],
           winner: null,
-          loser: null
+          loser: null,
+          meta: {}
         });
       } else {
         currentLosersMatches.push({
           matchupId: `L${r + 1}-match${Math.floor(i / 2) + 1}`,
           participants: [combined[i], null],
-          winner: combined[i],
-          loser: null
+          winner: null,
+          loser: null,
+          meta: {}
         });
       }
     }
     losersRounds.push({ round: r + 1, matchups: currentLosersMatches });
-    
-    // Set previousLosersWinners for the next iteration.
-    previousLosersWinners = currentLosersMatches.map(match => ({
-      participant: match.winner ? match.winner : null,
-      source: match.matchupId
-    }));
+    previousLosersWinners = currentLosersMatches.map(() => null);
   }
   
   return losersRounds;
 }
 
 // ------------------------------------------
-// Bracket Generation Route
+// Bracket Generation Route (Dynamic for Any Number of Racers)
 // ------------------------------------------
 router.post("/generateFull", async (req, res) => {
   try {
@@ -141,86 +168,39 @@ router.post("/generateFull", async (req, res) => {
       return res.status(400).json({ message: "grandPrixId is required" });
     }
 
-    // Retrieve racers for the event, sorted by points descending (higher seed first)
-    const racers = await Racer.find({ grandPrix: grandPrixId }).sort({ points: -1 });
+    // Retrieve racers sorted by seed ascending (1 is top seed)
+    const racers = await Racer.find({ grandPrix: grandPrixId }).sort({ seed: 1 });
     const n = racers.length;
     if (n < 2) {
       return res.status(400).json({ message: "Not enough racers to generate a bracket" });
     }
 
-    // Traditional bye calculation: nextPowerOfTwo(n) - n
-    const standardByes = nextPowerOfTwo(n) - n;
-    console.log(`Total racers: ${n}, Standard byes: ${standardByes}`);
+    // Create dynamic mapping based on the number of racers.
+    const roundsMapping = getDynamicSeedMapping(n);
 
-    let round1Matchups = [];
-    // Assign byes to the top 'byes' seeds:
-    for (let i = 0; i < standardByes; i++) {
-      round1Matchups.push({
-        racer1: racers[i]._id,
-        racer2: null,
-        winner: racers[i]._id, // auto-advance
-        loser: null
+    // Build winners bracket using the dynamic mapping.
+    const winnersBracket = roundsMapping.map((roundMatches, roundIndex) => {
+      const matchups = roundMatches.map(match => {
+        const team1 = match.seed1 ? racers.find(r => r.seed === match.seed1) : null;
+        const team2 = match.seed2 ? racers.find(r => r.seed === match.seed2) : null;
+        return {
+          matchId: match.matchId,
+          racer1: team1 ? team1._id : null,
+          racer2: team2 ? team2._id : null,
+          // If one team is missing, auto-advance that team (bye)
+          winner: (team1 && !team2) ? team1._id : (team2 && !team1) ? team2._id : null,
+          loser: null,
+          nextMatchIdIfWin: match.nextMatchIdIfWin,
+          nextMatchSlot: match.nextMatchSlot
+        };
       });
-    }
-    // Pair the remaining racers sequentially:
-    const remaining = racers.slice(standardByes);
-    for (let i = 0; i < remaining.length; i += 2) {
-      if (i + 1 < remaining.length) {
-        round1Matchups.push({
-          racer1: remaining[i]._id,
-          racer2: remaining[i + 1]._id,
-          winner: null,
-          loser: null
-        });
-      } else {
-        // If there's an odd number, assign a bye for the last racer.
-        round1Matchups.push({
-          racer1: remaining[i]._id,
-          racer2: null,
-          winner: remaining[i]._id,
-          loser: null
-        });
-      }
-    }
+      return { round: roundIndex + 1, matchups };
+    });
 
-    // Build the winners bracket rounds.
-    let winnersBracket = [];
-    winnersBracket.push({ round: 1, matchups: round1Matchups });
-
-    let currentRoundMatchups = round1Matchups;
-    let roundNumber = 2;
-    while (currentRoundMatchups.length > 1) {
-      let nextRoundMatchups = [];
-      // Simulate winners from current round (assume bye or racer1 wins by default)
-      let winners = currentRoundMatchups.map(matchup => matchup.winner ? matchup.winner : matchup.racer1);
-      // Pair winners for the next round sequentially:
-      for (let i = 0; i < winners.length; i += 2) {
-        if (i + 1 < winners.length) {
-          nextRoundMatchups.push({
-            racer1: winners[i],
-            racer2: winners[i + 1],
-            winner: null,
-            loser: null
-          });
-        } else {
-          nextRoundMatchups.push({
-            racer1: winners[i],
-            racer2: null,
-            winner: winners[i],
-            loser: null
-          });
-        }
-      }
-      winnersBracket.push({ round: roundNumber, matchups: nextRoundMatchups });
-      currentRoundMatchups = nextRoundMatchups;
-      roundNumber++;
-    }
-
-    // Compute the losers bracket using our custom function.
+    // Compute losers bracket from winners bracket.
     const losersBracket = computeLosersBracket(winnersBracket);
 
-    // Finals placeholders: winners bracket champion vs. losers bracket champion,
-    // with the possibility of a reset match.
+    // Finals structure remains as before.
     const finals = {
       championship: {
         match: {
@@ -240,7 +220,6 @@ router.post("/generateFull", async (req, res) => {
       }
     };
 
-    // Create and save the bracket document.
     const bracket = new Bracket({
       grandPrix: grandPrixId,
       winnersBracket,
@@ -249,19 +228,17 @@ router.post("/generateFull", async (req, res) => {
     });
     await bracket.save();
 
-    // Re-query the bracket and populate nested fields for easier reading.
     const fullBracket = await Bracket.findById(bracket._id)
       .populate("grandPrix", "name")
       .populate({
         path: "winnersBracket.matchups.racer1",
-        select: "firstName lastName club"
+        select: "firstName lastName club seed"
       })
       .populate({
         path: "winnersBracket.matchups.racer2",
-        select: "firstName lastName club"
+        select: "firstName lastName club seed"
       });
 
-    // Add a custom match name to each matchup in the winners bracket.
     const formattedWinners = fullBracket.winnersBracket.map(round => {
       const formattedMatchups = round.matchups.map((matchup, index) => ({
         ...matchup.toObject(),
@@ -271,14 +248,14 @@ router.post("/generateFull", async (req, res) => {
     });
 
     const responseBracket = {
-      grandPrix: fullBracket.grandPrix, // Contains the event name.
+      grandPrix: fullBracket.grandPrix,
       winnersBracket: formattedWinners,
-      losersBracket: losersBracket, // Computed losers bracket.
+      losersBracket: losersBracket,
       finals: fullBracket.finals
     };
 
     res.status(201).json({
-      message: "Full bracket generated successfully",
+      message: "Full bracket generated successfully (Dynamic mode)",
       bracket: responseBracket
     });
   } catch (error) {
