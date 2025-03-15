@@ -2,149 +2,153 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
+import { Bracket } from "react-bracket";
+
+// Conversion function for Winners Bracket
+function convertWinnersToReactBracket(winnersBracket) {
+  return {
+    rounds: winnersBracket.map(round => ({
+      title: `Winners Round ${round.round}`,
+      seeds: round.matchups.map(match => ({
+        id: match.matchId,
+        teams: [
+          {
+            name: match.racer1
+              ? `#${match.racer1.seed} ${match.racer1.firstName} ${match.racer1.lastName}`
+              : "TBD",
+          },
+          {
+            name: match.racer2
+              ? `#${match.racer2.seed} ${match.racer2.firstName} ${match.racer2.lastName}`
+              : "TBD",
+          },
+        ],
+      })),
+    })),
+  };
+}
+
+// Conversion function for Losers Bracket
+function convertLosersToReactBracket(losersBracket) {
+  return {
+    rounds: losersBracket.map(lbRound => ({
+      title: `Losers Round ${lbRound.round}`,
+      seeds: lbRound.matchups.map(match => {
+        const p1 = match.participants && match.participants[0];
+        const p2 = match.participants && match.participants[1];
+
+        const name1 = p1
+          ? p1.source
+            ? `From ${p1.source} (M#${p1.matchIndex + 1})`
+            : "TBD"
+          : "TBD";
+
+        const name2 = p2
+          ? p2.source
+            ? `From ${p2.source} (M#${p2.matchIndex + 1})`
+            : "TBD"
+          : "TBD";
+
+        return {
+          id: match.matchupId,
+          teams: [
+            { name: name1 },
+            { name: name2 },
+          ],
+        };
+      }),
+    })),
+  };
+}
 
 function ViewBrackets() {
   const { gpId } = useParams();
-  const [bracketData, setBracketData] = useState(null);
+  const [winnersData, setWinnersData] = useState(null);
+  const [losersData, setLosersData] = useState(null);
+  const [finalsData, setFinalsData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Fetch bracket data when component mounts.
   useEffect(() => {
-    const fetchBracket = async () => {
+    async function fetchBracket() {
       try {
-        // If a bracket already exists for this GP, you could use a GET route.
-        // For simplicity, here we call the generateFull route to generate/fetch the bracket.
         const response = await axios.post("/api/bracket/generateFull", { grandPrixId: gpId });
-        setBracketData(response.data.bracket);
+        const bracket = response.data.bracket;
+        if (!bracket) {
+          setError("No bracket data found.");
+          setLoading(false);
+          return;
+        }
+        // Convert winners and losers bracket into react-bracket format.
+        const winnersBracket = convertWinnersToReactBracket(bracket.winnersBracket);
+        const losersBracket = convertLosersToReactBracket(bracket.losersBracket);
+
+        setWinnersData(winnersBracket);
+        setLosersData(losersBracket);
+        setFinalsData(bracket.finals);
         setLoading(false);
       } catch (err) {
         console.error("Error fetching bracket:", err);
         setError(err.message);
         setLoading(false);
       }
-    };
+    }
     fetchBracket();
   }, [gpId]);
 
-  if (loading) return <div className="text-white text-center py-5">Loading bracket...</div>;
-  if (error) return <div className="text-danger text-center py-5">{error}</div>;
-  if (!bracketData) return <div className="text-white text-center py-5">No bracket data found.</div>;
+  if (loading)
+    return (
+      <div style={{ color: "#fff", textAlign: "center", padding: "2rem" }}>
+        Loading bracket...
+      </div>
+    );
+  if (error)
+    return (
+      <div style={{ color: "red", textAlign: "center", padding: "2rem" }}>
+        Error: {error}
+      </div>
+    );
+  if (!winnersData || !losersData)
+    return (
+      <div style={{ color: "#fff", textAlign: "center", padding: "2rem" }}>
+        No bracket data available.
+      </div>
+    );
 
   return (
-    <div className="min-vh-100" style={{ background: "rgba(0,0,0,0.6)" }}>
-      <div className="container py-5">
-        <h2
-          className="text-white fw-bold mb-4 text-center"
-          style={{ textShadow: "4px 4px 8px rgba(0,0,0,0.9)" }}
-        >
-          {bracketData.grandPrix.name} – Double-Elimination Bracket
-        </h2>
-
-        <div className="row">
-          {/* Winners Bracket */}
-          <div className="col-md-6">
-            <h4 className="text-white">Winners Bracket</h4>
-            {bracketData.winnersBracket.map((round, rIndex) => (
-              <div key={rIndex} className="mb-3">
-                <h5 className="text-white">Round {round.round}</h5>
-                {round.matchups.map((matchup, mIndex) => (
-                  <div
-                    key={mIndex}
-                    className="p-2 mb-2"
-                    style={{ border: "1px solid #fff", borderRadius: "4px" }}
-                  >
-                    <div className="text-white">
-                      <strong>{matchup.matchName}</strong>
-                    </div>
-                    <div className="text-white">
-                      {matchup.racer1
-                        ? `${matchup.racer1.firstName} ${matchup.racer1.lastName.charAt(0)}.`
-                        : "TBD"}
-                    </div>
-                    <div className="text-white">
-                      {matchup.racer2
-                        ? `${matchup.racer2.firstName} ${matchup.racer2.lastName.charAt(0)}.`
-                        : "TBD"}
-                    </div>
-                    <div className="text-white">
-                      Winner: {matchup.winner ? (matchup.winner.firstName ? `${matchup.winner.firstName} ${matchup.winner.lastName.charAt(0)}.` : matchup.winner) : "Pending"}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-
-          {/* Losers Bracket */}
-          <div className="col-md-6">
-            <h4 className="text-white">Losers Bracket</h4>
-            {bracketData.losersBracket.map((round, rIndex) => (
-              <div key={rIndex} className="mb-3">
-                <h5 className="text-white">Round {round.round}</h5>
-                {round.matchups.map((matchup, mIndex) => (
-                  <div
-                    key={mIndex}
-                    className="p-2 mb-2"
-                    style={{ border: "1px solid #fff", borderRadius: "4px" }}
-                  >
-                    <div className="text-white">
-                      <strong>{matchup.matchupId}</strong>
-                    </div>
-                    <div className="text-white">
-                      Participant 1:{" "}
-                      {matchup.participants && matchup.participants[0]
-                        ? matchup.participants[0].source
-                          ? `From ${matchup.participants[0].source}`
-                          : "TBD"
-                        : "TBD"}
-                    </div>
-                    <div className="text-white">
-                      Participant 2:{" "}
-                      {matchup.participants && matchup.participants[1]
-                        ? matchup.participants[1].source
-                          ? `From ${matchup.participants[1].source}`
-                          : "TBD"
-                        : "TBD"}
-                    </div>
-                    <div className="text-white">
-                      Winner: {matchup.winner ? matchup.winner : "Pending"}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
+    <div style={{ background: "#111", minHeight: "100vh", color: "#fff", padding: "1rem" }}>
+      <h2 className="text-center mb-4">Double Elimination Bracket</h2>
+      <div
+        style={{
+          display: "flex",
+          gap: "2rem",
+          overflowX: "auto", // Horizontal scrolling for large brackets
+          paddingBottom: "1rem",
+        }}
+      >
+        {/* Winners Bracket */}
+        <div style={{ minWidth: "600px" }}>
+          <h3 className="text-center">Winners Bracket</h3>
+          <Bracket rounds={winnersData.rounds} />
         </div>
 
-        {/* Finals Section */}
-        <div className="mt-4">
-          <h4 className="text-white text-center">Finals</h4>
-          <div className="row">
-            <div className="col-md-6">
-              <div
-                className="p-2 mb-2"
-                style={{ border: "1px solid #fff", borderRadius: "4px" }}
-              >
-                <h5 className="text-white text-center">Championship Match</h5>
-                <div className="text-white text-center">
-                  {bracketData.finals.championship.match.racer1 ? "TBD" : "TBD"}
-                </div>
-              </div>
-            </div>
-            <div className="col-md-6">
-              <div
-                className="p-2 mb-2"
-                style={{ border: "1px solid #fff", borderRadius: "4px" }}
-              >
-                <h5 className="text-white text-center">Third Place</h5>
-                <div className="text-white text-center">
-                  {bracketData.finals.thirdPlace.match.racer1 ? "TBD" : "TBD"}
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Losers Bracket */}
+        <div style={{ minWidth: "600px" }}>
+          <h3 className="text-center">Losers Bracket</h3>
+          <Bracket rounds={losersData.rounds} />
         </div>
+      </div>
+
+      {/* Finals Section */}
+      <div style={{ marginTop: "2rem", textAlign: "center" }}>
+        <h3>Finals</h3>
+        {finalsData && finalsData.championship && (
+          <div style={{ marginTop: "1rem" }}>
+            <strong>Championship Match:</strong>
+            <div>TBD or show the actual racers</div>
+          </div>
+        )}
       </div>
     </div>
   );
