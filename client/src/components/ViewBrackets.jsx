@@ -1,7 +1,7 @@
 // src/components/ViewBrackets.jsx
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import axios from 'axios';
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import axios from "axios";
 
 function ViewBrackets() {
   const { gpId } = useParams();
@@ -12,11 +12,14 @@ function ViewBrackets() {
   useEffect(() => {
     async function fetchBracket() {
       try {
-        const resp = await axios.post('/api/bracket/generateFull', { grandPrixId: gpId });
-        setBracketData(resp.data.bracket);
+        const response = await axios.post("/api/bracket/generateFull", {
+          grandPrixId: gpId,
+        });
+        console.log("Fetched bracket data:", response.data.bracket);
+        setBracketData(response.data.bracket);
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching bracket:', err);
+        console.error("Error fetching bracket:", err);
         setError(err.message);
         setLoading(false);
       }
@@ -24,31 +27,34 @@ function ViewBrackets() {
     fetchBracket();
   }, [gpId]);
 
-  // When bracketData is loaded, render the bracket into a DOM element (e.g., #bracket-container)
+  // Once bracketData is loaded and bracketsViewer is available, render the bracket
   useEffect(() => {
     if (bracketData && window.bracketsViewer) {
-      // Adjust these keys to match how your backend returns the bracket
+      const { participants, stages, matches, matchGames } = bracketData;
       window.bracketsViewer.render(
         {
-          stages: bracketData.stage,         // e.g. bracketData.stage
-          matches: bracketData.match,        // e.g. bracketData.match
-          matchGames: bracketData.match_game,// e.g. bracketData.match_game
-          participants: bracketData.participant,
+          participants,
+          stages,
+          matches,
+          matchGames,
         },
-        '#bracket-container' // The CSS selector of the container where the bracket is rendered
+        "#bracket-container"
       );
     }
   }, [bracketData]);
 
-  if (loading) return <div style={{ color: '#fff' }}>Loading bracket...</div>;
-  if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
-  if (!bracketData) return <div style={{ color: '#fff' }}>No bracket data found.</div>;
+  if (loading)
+    return <div style={{ color: "#fff", textAlign: "center", padding: "2rem" }}>Loading bracket...</div>;
+  if (error)
+    return <div style={{ color: "red", textAlign: "center", padding: "2rem" }}>Error: {error}</div>;
+  if (!bracketData)
+    return <div style={{ color: "#fff", textAlign: "center", padding: "2rem" }}>No bracket data found.</div>;
 
   return (
-    <div style={{ background: '#111', minHeight: '100vh', color: '#fff', padding: '1rem' }}>
-      <h2 className="text-center">Double Elimination Bracket</h2>
-      {/* The viewer will render the bracket into this container */}
-      <div id="bracket-container" style={{ overflowX: 'auto' }} />
+    <div style={{ background: "#111", minHeight: "100vh", color: "#fff", padding: "1rem" }}>
+      <h2 className="text-center mb-4">Double Elimination Bracket</h2>
+      {/* The brackets-viewer will render into this container */}
+      <div id="bracket-container" style={{ overflowX: "auto" }} />
     </div>
   );
 }

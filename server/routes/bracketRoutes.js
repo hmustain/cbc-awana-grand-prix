@@ -3,7 +3,7 @@ const express = require("express");
 const Racer = require("../models/Racer");
 const GrandPrix = require("../models/GrandPrix");
 
-// Import the new brackets-manager and its JSON storage adapter.
+// Import the JSON storage and BracketsManager from the new packages
 const { JsonDatabase } = require("brackets-json-db");
 const { BracketsManager } = require("brackets-manager");
 
@@ -12,46 +12,59 @@ const manager = new BracketsManager(storage);
 
 const router = express.Router();
 
-// POST /api/bracket/generateFull
+// Helper: calculate next power of two (we no longer use it to pad manually)
+function nextPowerOfTwo(n) {
+  return Math.pow(2, Math.ceil(Math.log2(n)));
+}
+
 router.post("/generateFull", async (req, res) => {
   try {
     const { grandPrixId } = req.body;
     if (!grandPrixId) {
       return res.status(400).json({ message: "grandPrixId is required" });
     }
-
+    
     // Retrieve racers sorted by seed (ascending)
     const racers = await Racer.find({ grandPrix: grandPrixId }).sort({ seed: 1 });
     if (racers.length < 2) {
       return res.status(400).json({ message: "Not enough racers to generate a bracket" });
     }
-
-    // Build an array of team names (or IDs) in seeding order.
-    // The brackets-manager library will internally determine the proper power‑of‑2 bracket
-    // and assign BYEs to higher seeds.
+    
+    // Build seeding array from actual racers (do NOT pad manually)
     const seeding = racers.map(r => `${r.firstName} ${r.lastName}`);
-
-    // Create a stage (for example, a double elimination stage).
-    // The settings option (e.g., grandFinal: 'double') can be customized per your requirements.
+    console.log("Seeding array:", seeding);
+    
+    // Convert grandPrixId to number if possible (brackets-manager examples use numeric IDs)
+    const tournamentId = Number(grandPrixId) || grandPrixId;
+    
+    // Create a double elimination stage using brackets-manager.
     await manager.create.stage({
-      tournamentId: grandPrixId,
+      tournamentId,
       name: "Double Elimination Stage",
       type: "double_elimination",
-      seeding: seeding,
-      settings: { grandFinal: "double" }
+      seeding, // Pass the natural seeding array
+      settings: { grandFinal: "double" },
     });
-
-    // Retrieve the stage bracket from the manager.
-    const stageBracket = await manager.get.stage({ tournamentId: grandPrixId });
-
-    // Return the bracket data.
-    return res.status(201).json({
+    
+    // Retrieve stage data; this returns an object with keys:
+    // { participant, stage, match, match_game }
+    const stageData = await manager.get.stageData({ tournamentId });
+    
+    // Map keys to what brackets-viewer expects:
+    const bracketData = {
+      participants: stageData.participant || [],
+      stages: stageData.stage || [],
+      matches: stageData.match || [],
+      matchGames: stageData.match_game || [],
+    };
+    
+    res.status(201).json({
       message: "Bracket generated successfully",
-      bracket: stageBracket
+      bracket: bracketData,
     });
   } catch (error) {
     console.error("Error generating full bracket:", error);
-    return res.status(500).json({ message: "Error generating full bracket", error });
+    res.status(500).json({ message: "Error generating full bracket", error });
   }
 });
 
