@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 // Helper to format racer name as "FirstName L."
@@ -12,6 +12,8 @@ function formatRacerName(racer) {
 
 function ViewBrackets() {
   const { gpId } = useParams();
+  const navigate = useNavigate();
+
   const [bracketData, setBracketData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -80,12 +82,10 @@ function ViewBrackets() {
   const revertRaceResult = async () => {
     if (!currentMatch || !bracketData?._id) return;
     try {
-      await axios.delete(`/api/bracket/${bracketData._id}/matchResult`, {
+      const response = await axios.delete(`/api/bracket/${bracketData._id}/matchResult`, {
         data: { matchId: currentMatch.matchId }
       });
-      // Refetch the bracket to update state.
-      const resp = await axios.post("/api/bracket/generateFull", { grandPrixId: gpId });
-      setBracketData(resp.data.bracket);
+      setBracketData(response.data.bracket);
     } catch (err) {
       console.error("Error reverting match result:", err);
       alert("Error reverting match result: " + err.message);
@@ -99,7 +99,7 @@ function ViewBrackets() {
   };
 
   // Render a table row for a racer.
-  // Always render three columns; the third shows a check mark if a winner is set.
+  //  - The third cell shows a check mark only if that racer is the winner.
   const renderRacerRow = (match, racer) => {
     const hasWinner = matchHasWinner(match);
     const isWinner = hasWinner && (match.winner === racer?._id);
@@ -107,7 +107,7 @@ function ViewBrackets() {
       <tr>
         <td>{racer?.seed || ""}</td>
         <td>{racer ? formatRacerName(racer) : "TBD"}</td>
-        <td style={{ textAlign: "center" }}>{hasWinner ? (isWinner ? "✓" : "") : ""}</td>
+        <td style={{ textAlign: "center" }}>{isWinner ? "✓" : ""}</td>
       </tr>
     );
   };
@@ -165,7 +165,6 @@ function ViewBrackets() {
           </h3>
           {bracketData.winnersBracket.map((round) => (
             <div key={round.round} className="mb-4">
-              {/* Restore card title with round and match info */}
               <h4 className="mb-3 text-white" style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.6)" }}>
                 Round {round.round}
               </h4>
@@ -179,15 +178,17 @@ function ViewBrackets() {
                         borderRadius: "8px",
                       }}
                     >
-                      {/* Card title includes round and match info */}
-                      <h5 className="fw-bold mb-3">Round {round.round} - {match.matchName || `Match ${index + 1}`}</h5>
+                      <h5 className="fw-bold mb-3">
+                        Round {round.round} - {match.matchName || `Match ${index + 1}`}
+                      </h5>
                       <div style={{ overflowX: "auto" }}>
                         <table className="table table-light table-striped table-sm">
                           <thead>
                             <tr>
                               <th>Seed</th>
                               <th>Racer</th>
-                              <th>{match.winner ? "Winner" : ""}</th>
+                              {/* Show "Winner" heading only if a winner is set */}
+                              <th>{matchHasWinner(match) ? "Winner" : ""}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -242,7 +243,7 @@ function ViewBrackets() {
                               <tr>
                                 <th>Seed</th>
                                 <th>Racer</th>
-                                <th>{match.winner ? "Winner" : ""}</th>
+                                <th>{matchHasWinner(match) ? "Winner" : ""}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -292,26 +293,59 @@ function ViewBrackets() {
                       <tr>
                         <th>Seed</th>
                         <th>Racer</th>
-                        <th>{"Winner"}</th>
+                        {/* Show "Winner" heading only if there's a winner */}
+                        <th>
+                          {matchHasWinner(bracketData.finals.championship.match)
+                            ? "Winner"
+                            : ""}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td>{bracketData.finals.championship.match.racer1?.seed || ""}</td>
-                        <td>{formatRacerName(bracketData.finals.championship.match.racer1)}</td>
-                        <td>{bracketData.finals.championship.match.winner === bracketData.finals.championship.match.racer1?._id ? "✓" : ""}</td>
+                        <td>
+                          {bracketData.finals.championship.match.racer1?.seed || ""}
+                        </td>
+                        <td>
+                          {formatRacerName(bracketData.finals.championship.match.racer1)}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {bracketData.finals.championship.match.winner ===
+                          bracketData.finals.championship.match.racer1?._id
+                            ? "✓"
+                            : ""}
+                        </td>
                       </tr>
                       <tr>
-                        <td>{bracketData.finals.championship.match.racer2?.seed || ""}</td>
-                        <td>{formatRacerName(bracketData.finals.championship.match.racer2)}</td>
-                        <td>{bracketData.finals.championship.match.winner === bracketData.finals.championship.match.racer2?._id ? "✓" : ""}</td>
+                        <td>
+                          {bracketData.finals.championship.match.racer2?.seed || ""}
+                        </td>
+                        <td>
+                          {formatRacerName(bracketData.finals.championship.match.racer2)}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {bracketData.finals.championship.match.winner ===
+                          bracketData.finals.championship.match.racer2?._id
+                            ? "✓"
+                            : ""}
+                        </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
+                {/* Race button for Championship */}
+                <div className="d-flex justify-content-end">
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => openRaceModal(bracketData.finals.championship.match)}
+                  >
+                    Race
+                  </button>
+                </div>
               </div>
             </div>
-            {/* Third Place */}
+
+            {/* If-necessary final */}
             <div className="col-md-6 mb-4">
               <div
                 className="h-100 p-3 text-white"
@@ -320,33 +354,75 @@ function ViewBrackets() {
                   borderRadius: "8px",
                 }}
               >
-                <h5 className="fw-bold mb-3">Third Place</h5>
+                <h5 className="fw-bold mb-3">If Necessary Final</h5>
                 <div style={{ overflowX: "auto" }}>
                   <table className="table table-light table-striped table-sm">
                     <thead>
                       <tr>
                         <th>Seed</th>
                         <th>Racer</th>
-                        <th>{"Winner"}</th>
+                        {/* Show "Winner" heading only if there's a winner */}
+                        <th>
+                          {matchHasWinner(bracketData.finals.ifNecessary.match)
+                            ? "Winner"
+                            : ""}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td>{bracketData.finals.thirdPlace.match.racer1?.seed || ""}</td>
-                        <td>{formatRacerName(bracketData.finals.thirdPlace.match.racer1)}</td>
-                        <td>{bracketData.finals.thirdPlace.match.winner === bracketData.finals.thirdPlace.match.racer1?._id ? "✓" : ""}</td>
+                        <td>
+                          {bracketData.finals.ifNecessary.match.racer1?.seed || ""}
+                        </td>
+                        <td>
+                          {formatRacerName(bracketData.finals.ifNecessary.match.racer1)}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {bracketData.finals.ifNecessary.match.winner ===
+                          bracketData.finals.ifNecessary.match.racer1?._id
+                            ? "✓"
+                            : ""}
+                        </td>
                       </tr>
                       <tr>
-                        <td>{bracketData.finals.thirdPlace.match.racer2?.seed || ""}</td>
-                        <td>{formatRacerName(bracketData.finals.thirdPlace.match.racer2)}</td>
-                        <td>{bracketData.finals.thirdPlace.match.winner === bracketData.finals.thirdPlace.match.racer2?._id ? "✓" : ""}</td>
+                        <td>
+                          {bracketData.finals.ifNecessary.match.racer2?.seed || ""}
+                        </td>
+                        <td>
+                          {formatRacerName(bracketData.finals.ifNecessary.match.racer2)}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {bracketData.finals.ifNecessary.match.winner ===
+                          bracketData.finals.ifNecessary.match.racer2?._id
+                            ? "✓"
+                            : ""}
+                        </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
+                {/* Race button for if-necessary final */}
+                <div className="d-flex justify-content-end">
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => openRaceModal(bracketData.finals.ifNecessary.match)}
+                  >
+                    Race
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* "View Results" button at the bottom */}
+        <div className="text-center">
+          <button
+            className="btn btn-danger"
+            onClick={() => navigate(`/results/${gpId}`)}
+          >
+            View Final Results
+          </button>
         </div>
       </div>
 
@@ -356,20 +432,26 @@ function ViewBrackets() {
           <div className="modal-dialog modal-dialog-centered" role="document">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">{currentMatch.matchName} - Race</h5>
+                <h5 className="modal-title">
+                  {currentMatch.matchName || currentMatch.matchId} - Race
+                </h5>
                 <button type="button" className="btn-close" onClick={() => setModalOpen(false)}></button>
               </div>
               <div className="modal-body">
                 <p>Select the winner:</p>
                 <div className="list-group">
                   <button
-                    className={`list-group-item list-group-item-action ${selectedWinner === "racer1" ? "list-group-item-success" : ""}`}
+                    className={`list-group-item list-group-item-action ${
+                      selectedWinner === "racer1" ? "list-group-item-success" : ""
+                    }`}
                     onClick={() => handleWinnerSelect("racer1")}
                   >
                     {currentMatch.racer1 ? formatRacerName(currentMatch.racer1) : "TBD"}
                   </button>
                   <button
-                    className={`list-group-item list-group-item-action ${selectedWinner === "racer2" ? "list-group-item-success" : ""}`}
+                    className={`list-group-item list-group-item-action ${
+                      selectedWinner === "racer2" ? "list-group-item-success" : ""
+                    }`}
                     onClick={() => handleWinnerSelect("racer2")}
                   >
                     {currentMatch.racer2 ? formatRacerName(currentMatch.racer2) : "TBD"}
