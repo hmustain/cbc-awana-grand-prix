@@ -826,4 +826,25 @@ router.delete("/:bracketId/matchResult", async (req, res) => {
   }
 });
 
+// GET /api/bracket/:bracketId
+router.get("/:bracketId", async (req, res) => {
+  try {
+    const bracket = await Bracket.findById(req.params.bracketId)
+      .populate("grandPrix", "name")
+      .populate("winnersBracket.matchups.racer1 winnersBracket.matchups.racer2")
+      .populate("losersBracket.matchups.racer1 losersBracket.matchups.racer2")
+      .populate("finals.championship.match.racer1 finals.championship.match.racer2")
+      .populate("finals.ifNecessary.match.racer1 finals.ifNecessary.match.racer2");
+    
+    if (!bracket) {
+      return res.status(404).json({ message: "Bracket not found" });
+    }
+    res.status(200).json(bracket);
+  } catch (error) {
+    console.error("Error fetching bracket:", error);
+    res.status(500).json({ message: "Error fetching bracket", error });
+  }
+});
+
+
 module.exports = router;
