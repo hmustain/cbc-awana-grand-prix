@@ -98,7 +98,7 @@ function ViewGrandPrix() {
               <thead>
                 <tr>
                   <th>Name</th>
-                  <th>Description</th>
+                  {/* <th>Description</th> */}
                   <th>Date</th>
                   <th>Location</th>
                   <th>Racers</th>
@@ -109,7 +109,7 @@ function ViewGrandPrix() {
                 {grandPrixList.map((gp) => (
                   <tr key={gp._id}>
                     <td>{gp.name}</td>
-                    <td>{gp.description}</td>
+                    {/* <td>{gp.description}</td> */}
                     <td>{new Date(gp.date).toLocaleDateString("en-US")}</td>
                     <td>{gp.location}</td>
                     <td>{gp.racersList?.length || 0}</td>
