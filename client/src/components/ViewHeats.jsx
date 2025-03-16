@@ -1,3 +1,4 @@
+// src/components/ViewHeats.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -9,8 +10,6 @@ function ViewHeats() {
   const [heats, setHeats] = useState([]);
   const [gpName, setGpName] = useState("");
   const [error, setError] = useState(null);
-
-  // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [currentHeatIndex, setCurrentHeatIndex] = useState(0);
   const [scoreInputs, setScoreInputs] = useState({});
@@ -56,28 +55,20 @@ function ViewHeats() {
 
   const handleScoreHeat = async () => {
     if (!currentHeat) return;
-
-    // Build the results array for scoring
     const results = laneInfo.map((item) => {
       const placement = parseInt(scoreInputs[item.racerId]) || 0;
       return { racerId: item.racerId, placement };
     });
-
     try {
       await axios.post("/api/heats/score", {
         heatId: currentHeat._id,
         results,
       });
-
-      // Refresh to see updated "Place" columns
       await fetchHeatsForGP();
-
-      // Move to the next heat automatically
       if (currentHeatIndex < heats.length - 1) {
         setCurrentHeatIndex(currentHeatIndex + 1);
         setScoreInputs({});
       } else {
-        // Last heat => close modal
         setModalOpen(false);
       }
     } catch (err) {
@@ -85,17 +76,11 @@ function ViewHeats() {
     }
   };
 
-  // Check if all heats are fully scored
   const areAllHeatsScored = () => {
     if (heats.length === 0) return false;
-    return heats.every((heat) => {
-      // "Fully scored" means results.length === laneInfo.length
-      return (
-        heat.results &&
-        heat.laneInfo &&
-        heat.results.length === heat.laneInfo.length
-      );
-    });
+    return heats.every((heat) => 
+      heat.results && heat.laneInfo && (heat.results.length === heat.laneInfo.length)
+    );
   };
 
   return (
@@ -121,25 +106,18 @@ function ViewHeats() {
         {error && <p className="text-danger text-center">{error}</p>}
 
         {heats.length === 0 ? (
-          <p className="text-white text-center">
-            No heats generated yet for this Grand Prix.
-          </p>
+          <p className="text-white text-center">No heats generated yet for this Grand Prix.</p>
         ) : (
           <>
-            {/* Heat Cards */}
             <div className="row">
               {heats.map((heat, index) => {
                 const cardTitle = heat.heatName;
                 const isScored = heat.results && heat.results.length > 0;
-
                 return (
                   <div key={heat._id} className="col-md-4 mb-4">
                     <div
                       className="h-100 p-3 text-white"
-                      style={{
-                        backgroundColor: "rgba(0,0,0,0.7)",
-                        borderRadius: "8px",
-                      }}
+                      style={{ backgroundColor: "rgba(0,0,0,0.7)", borderRadius: "8px" }}
                     >
                       <h5 className="fw-bold mb-3">{cardTitle}</h5>
                       <div style={{ overflowX: "auto" }}>
@@ -155,19 +133,14 @@ function ViewHeats() {
                             {heat.laneInfo?.map((item, i) => {
                               const shortName = item.name.split(" - ")[0];
                               const laneDisplay = item.lane + 1;
-
                               let place = "";
                               if (isScored) {
                                 const foundResult = heat.results.find((r) => {
                                   if (!r.racer || !item.racerId) return false;
-                                  return (
-                                    r.racer.toString() ===
-                                    item.racerId.toString()
-                                  );
+                                  return r.racer.toString() === item.racerId.toString();
                                 });
                                 place = foundResult?.placement || "";
                               }
-
                               return (
                                 <tr key={i}>
                                   <td>{shortName}</td>
@@ -193,14 +166,20 @@ function ViewHeats() {
               })}
             </div>
 
-            {/* If all heats are scored, show a "View Results" button */}
+            {/* Buttons when all heats are scored */}
             {areAllHeatsScored() && (
               <div className="text-center mt-4">
                 <button
-                  className="btn btn-danger"
+                  className="btn btn-danger me-2"
                   onClick={() => navigate(`/gp/${gpId}/results`)}
                 >
                   View Results
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => navigate(`/brackets/${gpId}`)}
+                >
+                  Generate Brackets
                 </button>
               </div>
             )}
@@ -208,7 +187,6 @@ function ViewHeats() {
         )}
       </div>
 
-      {/* Modal for scoring the current heat */}
       {modalOpen && currentHeat && (
         <div
           className="modal d-block"
@@ -220,11 +198,7 @@ function ViewHeats() {
             <div className="modal-content bg-light text-dark">
               <div className="modal-header border-0">
                 <h5 className="modal-title">{currentHeat.heatName}</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setModalOpen(false)}
-                ></button>
+                <button type="button" className="btn-close" onClick={() => setModalOpen(false)}></button>
               </div>
               <div className="modal-body">
                 <table className="table table-light table-sm">
@@ -248,9 +222,7 @@ function ViewHeats() {
                               type="number"
                               className="form-control form-control-sm"
                               value={scoreInputs[item.racerId] || ""}
-                              onChange={(e) =>
-                                handlePlaceChange(item.racerId, e.target.value)
-                              }
+                              onChange={(e) => handlePlaceChange(item.racerId, e.target.value)}
                             />
                           </td>
                         </tr>

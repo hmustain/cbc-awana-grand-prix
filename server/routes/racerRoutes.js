@@ -72,6 +72,28 @@ router.get("/gp/:gpId", async (req, res) => {
   }
 });
 
+// PUT route to update the seed of a racer
+router.put("/:id/seed", async (req, res) => {
+  try {
+    const { seed } = req.body;
+    const updatedRacer = await Racer.findByIdAndUpdate(
+      req.params.id,
+      { seed },
+      { new: true }
+    );
+    if (!updatedRacer) {
+      return res.status(404).json({ message: "Racer not found" });
+    }
+    res.status(200).json({
+      message: "Racer seed updated successfully",
+      racer: updatedRacer
+    });
+  } catch (error) {
+    console.error("Error updating racer seed:", error);
+    res.status(500).json({ message: "Error updating racer seed", error });
+  }
+});
+
 // Delete a racer by ID
 router.delete("/:id", async (req, res) => {
   try {
