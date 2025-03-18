@@ -69,7 +69,7 @@ function ViewGpResults() {
       try {
         // If you have a GET route for bracket, use that:
         // e.g. GET /api/bracket/:bracketId
-        const response = await axios.get(`/api/bracket/${gpId}`);
+        const response = await axios.get(`/api/bracket/gp/${gpId}`);
         const bracket = response.data;
         setBracketData(bracket);
 

@@ -826,16 +826,15 @@ router.delete("/:bracketId/matchResult", async (req, res) => {
   }
 });
 
-// GET /api/bracket/:bracketId
-router.get("/:bracketId", async (req, res) => {
+// GET /api/bracket/gp/:grandPrixId
+router.get("/gp/:grandPrixId", async (req, res) => {
   try {
-    const bracket = await Bracket.findById(req.params.bracketId)
+    const bracket = await Bracket.findOne({ grandPrix: req.params.grandPrixId })
       .populate("grandPrix", "name")
       .populate("winnersBracket.matchups.racer1 winnersBracket.matchups.racer2")
       .populate("losersBracket.matchups.racer1 losersBracket.matchups.racer2")
       .populate("finals.championship.match.racer1 finals.championship.match.racer2")
       .populate("finals.ifNecessary.match.racer1 finals.ifNecessary.match.racer2");
-    
     if (!bracket) {
       return res.status(404).json({ message: "Bracket not found" });
     }
@@ -845,6 +844,7 @@ router.get("/:bracketId", async (req, res) => {
     res.status(500).json({ message: "Error fetching bracket", error });
   }
 });
+
 
 
 module.exports = router;
