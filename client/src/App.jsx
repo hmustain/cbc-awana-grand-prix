@@ -8,6 +8,7 @@ import AddRacer from "./components/AddRacer";
 import ViewHeats from "./components/ViewHeats";
 import HeatResults from "./components/HeatResults";
 import ViewBrackets from "./components/ViewBrackets";
+import ViewGpResults from "./components/ViewGpResults"; // import your new results component
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="/heats/:gpId" element={<ViewHeats />} />
         <Route path="/gp/:gpId/results" element={<HeatResults />} />
         <Route path="/brackets/:gpId" element={<ViewBrackets />} />
+        <Route path="/results/:gpId" element={<ViewGpResults />} />
       </Routes>
     </Router>
   );
